@@ -5,7 +5,7 @@ from torch.optim.lr_scheduler import *
 from torch.utils.data import DataLoader
 from torchvision.datasets import *
 from torchvision.transforms import *
-
+from typing import Union
 
 from torchvision.models import resnet50, ResNet50_Weights
 from torchvision.models import resnet34, ResNet34_Weights
@@ -14,13 +14,14 @@ from torchvision.models import resnet18, ResNet18_Weights
 
 def load_model(model_name: str, 
                dataset_name: str, 
-               device=torch.device('cuda')) -> nn.Module:
+               device: Union[torch.device, str] = torch.device('cuda'),
+               ) -> nn.Module:
     
-    if dataset_name.find('cifar') != -1:
+    if 'cifar' in dataset_name:
         full_name = dataset_name + "_" + model_name
         model = torch.hub.load("chenyaofo/pytorch-cifar-models", full_name, pretrained=True)
-    
-    elif dataset_name.find('imagenet') != -1:
+
+    elif 'imagenet' in dataset_name:
         if model_name == "resnet50":
             model = resnet50(weights=ResNet50_Weights.DEFAULT).to(device)
 
@@ -32,6 +33,20 @@ def load_model(model_name: str,
 
     return model.to(device)
 
+
+def load_params(model: nn.Module, 
+                addr: str, 
+                device: Union[torch.device, str] = torch.device('cpu'),
+                ) -> None:
+    i = 0
+    state_dict_load = torch.load(addr, map_location=device)
+    sd = model.state_dict()
+    for layer_name, _ in sd.items():
+        if 'num_batches_tracked' not in layer_name:           
+            sd[layer_name] = nn.Parameter(state_dict_load[list(state_dict_load)[i]].to(device))
+        i += 1
+    
+    model.load_state_dict(sd)
 
 
 def train(model: nn.Module,
@@ -91,4 +106,5 @@ def evaluate(
         #break
 
     return (num_correct / num_samples * 100).item()
+
 
