@@ -48,7 +48,7 @@ class ImageNetKaggle(Dataset):
                 x = self.transform(x)
             return x, self.targets[idx]
     
-def load_dataset(dataset_name, is_train, batch_size):
+def load_dataset(dataset_name, batch_size, is_train):
     if dataset_name == "cifar10":
         mean = (0.49139968, 0.48215827, 0.44653124)
         std = (0.24703233, 0.24348505, 0.26158768)

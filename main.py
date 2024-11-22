@@ -8,6 +8,8 @@ import models_utils
 import torchprofile
 import utils
 import copy
+import torch.nn as nn
+import pruning
 
 
 
@@ -48,9 +50,8 @@ if __name__ == "__main__":
 
     
     #load dataset and CNN model
-    is_train = False
-    #is_pruned = False       #TODO: if pruned in network_name: True
-    dataloader, classes_count, dummy_input = dataset_utils.load_dataset(dataset_name, is_train, batch_size)
+    trainloader, classes_count, dummy_input = dataset_utils.load_dataset(dataset_name, batch_size, is_train=True)
+    testloader, classes_count, dummy_input = dataset_utils.load_dataset(dataset_name, batch_size, is_train=False)
     model = models_utils.load_model(network_name, dataset_name, device)
     
     #create log file
@@ -63,7 +64,7 @@ if __name__ == "__main__":
 
     
     if run_mode == "test":
-        net_accuracy = models_utils.evaluate(model, dataloader, device=device)
+        net_accuracy = models_utils.evaluate(model, testloader, device=device)
         total_params = sum(p.numel() for p in model.parameters())
         total_macs = torchprofile.profile_macs(model, dummy_input)
         log_file = open(log_file_name, 'w')
@@ -88,27 +89,35 @@ if __name__ == "__main__":
         pu = utils.prune_utils(model_cp, pruning_method)
         pu.set_pruning_ratios(pruning_ratio_list)
         sorted_model = pu.channel_sorting(model_cp)
-        print(sorted_model)
         pruned_model = pu.homogeneous_prune(sorted_model)
         print(pruned_model)
-        #torch.save(pruned_model.state_dict(), log_direction + '/../pruned_model-' + pruning_vals + '.pth')
+        
 
-
-        model_accuracy = models_utils.evaluate(model, dataloader, device=device)
+        model_accuracy = models_utils.evaluate(model, testloader, device=device)
         model_params = sum(p.numel() for p in model.parameters())
         model_macs = torchprofile.profile_macs(model, dummy_input)
 
-        pruned_accuracy = models_utils.evaluate(pruned_model, dataloader, device=device)
+        pruned_accuracy = models_utils.evaluate(pruned_model, testloader, device=device)
         pruned_params = sum(p.numel() for p in pruned_model.parameters())
         pruned_macs = torchprofile.profile_macs(pruned_model, dummy_input)
+
+        #fine tuning the pruned model
+        finetune_epochs = 5
+        finetune_model = pruning.fine_tune(pruned_model, trainloader, testloader, finetune_epochs, device)
+        finetune_accuracy = models_utils.evaluate(finetune_model, testloader, device=device)
+        
+        torch.save(finetune_model.state_dict(), log_direction + '/../pruned_model-' + pruning_vals + '.pth')
+
         
         print("pruned model test top-1 accuracy: " + str(pruned_accuracy))
+        print("fine tuned model test top-1 accuracy: " + str(finetune_accuracy))
+
         print("pruned model number of MACs: " + str(pruned_macs)) 
         print("pruned model number of parameters: " + str(pruned_params))
 
-        print("accuracy loss: " + str(model_accuracy - pruned_accuracy))
-        print("MAC improvement: " + str(model_params / pruned_params))
-        print("Params improvement: " + str(model_macs / pruned_macs))
+        print("final accuracy loss: " + str(model_accuracy - finetune_accuracy))
+        print("MAC improvement: " + str(pruned_params / model_params))
+        print("Params improvement: " + str(pruned_macs / model_macs))
 
 
     elif run_mode == "load-pruned":
