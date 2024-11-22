@@ -87,9 +87,11 @@ if __name__ == "__main__":
         model_cp = copy.deepcopy(model)
         pu = utils.prune_utils(model_cp, pruning_method)
         pu.set_pruning_ratios(pruning_ratio_list)
-        pruned_model = pu.homogeneous_prune()
+        sorted_model = pu.channel_sorting(model_cp)
+        print(sorted_model)
+        pruned_model = pu.homogeneous_prune(sorted_model)
         print(pruned_model)
-        torch.save(pruned_model.state_dict(), log_direction + '/../pruned_model-' + pruning_vals + '.pth')
+        #torch.save(pruned_model.state_dict(), log_direction + '/../pruned_model-' + pruning_vals + '.pth')
 
 
         model_accuracy = models_utils.evaluate(model, dataloader, device=device)

@@ -67,52 +67,64 @@ class prune_utils():
         self.bn_layers = []
         self.fc_layers = []
 
-        
-
     '''
     iterates over the model,
-    applies homogeneous pruning to conv and fc layers separately,
+    applies homogeneous pruning to conv layers,
     returns the pruned model 
     '''
-    def homogeneous_prune(self) -> nn.Module:
-        self._get_separated_layers(self.model)
+    def homogeneous_prune(self, 
+                          model: nn.Module) -> nn.Module:
+        
+        self._reset_params()
+        self._get_separated_layers(model)
         assert len(self.conv_layers) != 0
         assert len(self.conv_layers) == len(self.bn_layers)
-        class_count = self.fc_layers[-1].out_features
+
         with torch.no_grad():
-            for i in range(len(self.conv_layers)):
+            for i in range(len(self.conv_layers) - 1):
                 conv_layer = self.conv_layers[i]
+
                 new_out_channel = conv_layer.out_channels - int(conv_layer.out_channels * self.conv_pruning_ratio)
-                print(conv_layer, new_out_channel)
                 conv_layer.weight.set_(conv_layer.weight.detach()[:new_out_channel])
                 conv_layer.bias.set_(conv_layer.bias.detach()[:new_out_channel])
                 conv_layer.out_channels = new_out_channel
 
                 bn_layer = self.bn_layers[i]
-
                 bn_layer.weight.set_(bn_layer.weight.detach()[:new_out_channel])
                 bn_layer.bias.set_(bn_layer.bias.detach()[:new_out_channel])
                 bn_layer.running_mean.set_(bn_layer.running_mean.detach()[:new_out_channel])
                 bn_layer.running_var.set_(bn_layer.running_var.detach()[:new_out_channel])
                 bn_layer.num_features = new_out_channel
-                
-                if i < len(self.conv_layers) - 1:
-                    next_conv = self.conv_layers[i+1]
-                    next_conv.weight.set_(next_conv.weight.detach()[:, :new_out_channel])
-                    next_conv.in_channels = new_out_channel
+
+                next_conv = self.conv_layers[i+1]
+                next_conv.weight.set_(next_conv.weight.detach()[:, :new_out_channel])
+                next_conv.in_channels = new_out_channel
             
-            new_features_count = new_out_channel
-            for i in range(len(self.fc_layers)):
-                fc_layer = self.fc_layers[i]
-                print(fc_layer, new_features_count)
-                fc_layer.in_features = new_features_count
-                fc_layer.weight.set_(fc_layer.weight.detach()[: , :new_features_count])
+        return model
+    
+    '''
+    sorts channels in conv layers based on an importance metric
+    '''
+    def channel_sorting(self, 
+                        model: nn.Module) -> nn.Module:
+        
+        self._reset_params()
+        self._get_separated_layers(model)
+        assert len(self.conv_layers) != 0
+        assert len(self.conv_layers) == len(self.bn_layers)
 
-                if fc_layer.out_features != class_count:
-                    new_features_count = fc_layer.out_features - int(fc_layer.out_features * self.fc_pruning_ratio)
-                    fc_layer.weight.set_(fc_layer.weight.detach()[:new_features_count, :])
-                    fc_layer.bias.set_(fc_layer.bias.detach()[:new_features_count])
-                    fc_layer.out_features = new_features_count
+        class_count = self.fc_layers[-1].out_features
+        with torch.no_grad():
+            for i in range(len(self.conv_layers) - 1):
+                conv_layer = self.conv_layers[i]
+                sort_index_conv = pruning.input_channel_L1_norm(conv_layer.weight)
+                conv_layer = pruning.channel_sorting(conv_layer, sort_index_conv)
 
+                bn_layer = self.bn_layers[i]
+                bn_layer = pruning.batchnorm_sorting(bn_layer, sort_index_conv)
+                
+                next_conv = self.conv_layers[i+1]
+                next_conv.weight.copy_(
+                    torch.index_select(next_conv.weight.detach(), 1, sort_index_conv))
 
-        return self.model
+        return model

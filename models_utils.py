@@ -103,7 +103,7 @@ def evaluate(
         num_samples += targets.size(0)
         num_correct += (outputs == targets).sum()
 
-        #break
+        break
 
     return (num_correct / num_samples * 100).item()
 
