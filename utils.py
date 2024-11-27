@@ -4,7 +4,9 @@ import pruning
 import copy
 import sys
 from typing import Callable, Dict, Any
+from torch.utils.data import DataLoader
 import importance_analysis
+from typing import Union
 
 class AnalysisHandler():
     def __init__(self) -> None:
@@ -29,18 +31,24 @@ class AnalysisHandler():
 class prune_utils():
     def __init__(self, 
                  model: nn.Module,
-                 pruning_method: str) -> None:
+                 trainloader: DataLoader,
+                 classes_count: int, 
+                 pruning_method: str,
+                 device: Union[torch.device, str] = torch.device("cuda")) -> None:
         
         if not isinstance(pruning_method, str):
             raise TypeError(f"Expected 'pruning_method' to be a string, got {type(pruning_method).__name__}")
         
         self.model = model
+        self.trainloader = trainloader
+        self.classes_count = classes_count
         self.pruning_method = pruning_method    #hm: homogeneous, ht: heterogeneous
         self.conv_count = 0
         self.conv_layers = []
         self.bn_layers = []
         self.fc_layers = []
         self.importance = {}
+        self.device = device
 
 
     def set_pruning_ratios(self, 
@@ -140,10 +148,10 @@ class prune_utils():
                         command: str="l1-norm") -> nn.Module:
         
         if command == "l1-norm":
-            sort_index_conv_dict = handler.execute(command, model, ...)   #importance_analysis.channel_L1_norm(conv_layer.weight)
-            print(sort_index_conv_dict)
-        #elif command == "vul-gain":
-        #    sort_index_conv = importance_analysis.channels_vulnerability_gain(model, data, ...)
+            sort_index_conv_dict = handler.execute(command, model, ...)  
+            
+        elif command == "vul-gain":
+            sort_index_conv_dict = handler.execute(command, model, self.trainloader, self.classes_count, self.device)
 
         self._reset_params()
         self._get_separated_layers(model)

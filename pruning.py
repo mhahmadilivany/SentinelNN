@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import models_utils
+from typing import Union
 
 
 def out_channel_sorting(conv_layer: nn.Module, 
@@ -41,7 +42,8 @@ def fine_tune(model: nn.Module,
               trainloader: DataLoader,
               testloader: DataLoader,
               eopchs: int,
-              device: torch.device) -> nn.Module:
+              device: Union[torch.device, str]) -> nn.Module:
+    
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, eopchs)
     criterion = nn.CrossEntropyLoss()

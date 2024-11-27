@@ -88,10 +88,10 @@ if __name__ == "__main__":
         
         #registering commands for importance analysis 
         handler.register("l1-norm", vul.L1_norm)
-        handler.register("vul-gain", vul.channels_vulnerability_gain)
+        handler.register("vul-gain", vul.vulnerability_gain)
 
         model_cp = copy.deepcopy(model)
-        pu = utils.prune_utils(model_cp, pruning_method)
+        pu = utils.prune_utils(model_cp, trainloader, classes_count, pruning_method, device)
         pu.set_pruning_ratios(pruning_ratio_list)
 
         sorted_model = pu.channel_sorting(model_cp, handler, importance_command)

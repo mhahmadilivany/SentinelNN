@@ -9,11 +9,10 @@ class L1_norm():
         self.ind_dict = {}
     
     def __call__(self, *args: nn.Module, **kwargs: None) -> Any:
-    #def __call__(self, model: nn.Module) -> Any:
         self.L1_norm_executor(args[0])
         return self.ind_dict
         
-    def L1_norm_executor(self, model, name='', ):
+    def L1_norm_executor(self, model, name='', ) -> None:
         for name1, layer in model.named_children():
             if list(layer.children()) == []:
                 if isinstance(layer, nn.Conv2d):
@@ -24,7 +23,8 @@ class L1_norm():
                 name += name1 + "."
                 self.L1_norm_executor(layer, name)
 
-    def channel_L1_norm(self, weight: torch.tensor) -> torch.tensor:
+    def channel_L1_norm(self, 
+                        weight: torch.tensor) -> torch.tensor:
         out_channels = weight.shape[0]
         importances = []
         for i_c in range(out_channels):
@@ -37,24 +37,53 @@ class L1_norm():
         return sort_index
 
 
-def channels_vulnerability_gain(net, target_layer, trainloader, batch_size, out_no, device):
-    torch.cuda.empty_cache()
-    if isinstance(target_layer, nn.Conv2d):
-        vulnerability = torch.zeros(target_layer.in_channels, device=device)
-        for data in trainloader:
-            x, _ = data[0].to(device), data[1].to(device)
+class vulnerability_gain():
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.model = args[0]
+        self.dataloader = args[1]
+        self.out_classes = args[2]
+        self.device = args[3]
+        self.ind_dict = {}
 
-            #run a forward pass                
-            outputs = net(x)
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        self.gain_norm_executor(self.model)
+        return self.ind_dict
+
+    def gain_norm_executor(self, 
+                           model: nn.Module, 
+                           name: str = '') -> None:
+        for name1, layer in model.named_children():
+            if list(layer.children()) == []:
+                if isinstance(layer, nn.Conv2d):
+                    sort_index = self.channels_vulnerability(self.model, layer)
+                    name_ = name + name1
+                    self.ind_dict[name_] = sort_index
+            else:
+                name += name1 + "."
+                self.gain_norm_executor(layer, name)
+
+    
+    def channels_vulnerability(self, 
+                               model: nn.Module, 
+                               target_layer: nn.Module) -> torch.tensor:
+        
+        torch.cuda.empty_cache()
+        trainloader = self.dataloader
+        batch_size = trainloader.batch_size
+        out_classes = self.out_classes
+        vulnerability = torch.zeros(target_layer.out_channels, device=self.device)
+        for data in trainloader:
+            x = data[0].to(self.device)        
+            outputs = model(x).to(self.device)
             _, predicted = torch.max(outputs, 1)
 
             #HarDNN's gain implementation
-            one_hots = F.one_hot(predicted, num_classes=out_no)
+            one_hots = F.one_hot(predicted, num_classes=out_classes)
             out_difs = torch.unsqueeze(torch.sum(outputs * one_hots, 1), 1) - outputs
             out_difs_sq = torch.pow(out_difs, 2)
-            vul_in_channel_total = torch.zeros(target_layer.in_channels, device=device)
+            vul_out_channel_total = torch.zeros(target_layer.out_channels, device=self.device)
 
-            for cls in range(out_no):
+            for cls in range(out_classes):
                 target_layer.weight.requires_grad = True
                 target_layer.weight.retain_grad()
                 loss = out_difs[:, cls]
@@ -64,13 +93,13 @@ def channels_vulnerability_gain(net, target_layer, trainloader, batch_size, out_
                 out_difs_sq_cp = torch.clone(out_difs_sq)
                 out_difs_sq_cp[out_difs_sq_cp == 0] = 1
                 
-                vul_in_channel = torch.zeros(target_layer.in_channels, device=device)
+                vul_out_channel = torch.zeros(target_layer.out_channels, device=self.device)
                 for img in range(batch_size):
                     vul_ch = torch.div(grad_sq, out_difs_sq_cp[img, cls])
-                    vul_in_channel += torch.sum(torch.sum(torch.sum(vul_ch, 3), 2), 0)
+                    vul_out_channel += torch.sum(torch.sum(torch.sum(vul_ch, 3), 2), 1)
                 
-                vul_in_channel = vul_in_channel / batch_size
-                vul_in_channel_total += vul_in_channel
+                vul_out_channel = vul_out_channel / batch_size
+                vul_out_channel_total += vul_out_channel
 
                 target_layer.weight.grad.zero_()
                 
@@ -79,20 +108,21 @@ def channels_vulnerability_gain(net, target_layer, trainloader, batch_size, out_
                 del loss
                 del grad_sq
                 del out_difs_sq_cp
-                del vul_in_channel
+                del vul_out_channel
                 torch.cuda.empty_cache()
             
-            vul_in_channel_total = torch.div(vul_in_channel_total, out_no)
-            vulnerability += vul_in_channel_total
+            vul_out_channel_total += torch.div(vul_out_channel_total, out_classes)
+            vulnerability += vul_out_channel_total
             
             break
         
         vulnerability = torch.div(vulnerability, torch.max(vulnerability))
 
-    #free memory
-    del net
-    del target_layer
-    del trainloader
-    torch.cuda.empty_cache()
+        #free memory
+        del model
+        del target_layer
+        del trainloader
+        torch.cuda.empty_cache()
+        sort_index = torch.argsort(vulnerability, descending=True)
 
-    return vulnerability
+        return sort_index
