@@ -136,6 +136,28 @@ if __name__ == "__main__":
     #develop a class instead of Conv2d, to replace them with it
     #it includes duplication and correction and outputs the same expected size
     #saving and loading them 
+    elif run_mode == "hardening":
+        handler = utils.AnalysisHandler()
+        
+        #registering commands for importance analysis 
+        handler.register("l1-norm", imp.L1_norm)
+        handler.register("vul-gain", imp.vulnerability_gain)
+        handler.register("salience", imp.Salience)
+        model_accuracy = models_utils.evaluate(model, testloader, device=device)
+        print(model_accuracy)
+
+        model_cp = copy.deepcopy(model)
+        pu = utils.prune_utils(model_cp, trainloader, classes_count, pruning_method, device)
+        pu.set_pruning_ratios(pruning_ratio_list)
+
+        sorted_model = pu.channel_sorting(model_cp, handler, importance_command)
+        
+        hr = utils.hardening_utils(hardening_ratio=0.1)
+        hardened_model = hr.hardening_conv(sorted_model) #replace all Conv2d with HardenedConv2d
+        hardened_accuracy = models_utils.evaluate(hardened_model, testloader, device=device)
+        
+        print(hardened_accuracy)
+
     
 
 

@@ -7,6 +7,7 @@ from typing import Callable, Dict, Any
 from torch.utils.data import DataLoader
 import importance_analysis
 from typing import Union
+import hardening
 
 class AnalysisHandler():
     def __init__(self) -> None:
@@ -200,4 +201,41 @@ class prune_utils():
         return model
     
 
+class hardening_utils():
+    def __init__(self, hardening_ratio) -> None:
+        self.hardening_ratio = hardening_ratio
 
+    def conv_replacement(self, model):
+        for name, layer in model.named_children():
+            if list(layer.children()) == []:
+                if isinstance(layer, nn.Conv2d):
+                    hardened_layer = hardening.HardenedConv2d(
+                        hardening_ratio=self.hardening_ratio,
+                        in_channels=layer.in_channels,
+                        out_channels=layer.out_channels,
+                        kernel_size=layer.kernel_size,
+                        stride=layer.stride,
+                        padding=layer.padding,
+                        dilation=layer.dilation,
+                        groups=layer.groups,
+                        bias=(layer.bias is not None),
+                        padding_mode=layer.padding_mode,
+                    )
+                    hardened_layer.weight.data = layer.weight.data.clone()
+                    if layer.bias is not None:
+                        hardened_layer.bias.data = layer.bias.data.clone()
+                    hardened_layer = self.hardening_conv(hardened_layer)
+                    
+                    # Replace the module in the model
+                    setattr(model, name, hardened_layer)
+
+            else:
+                self.conv_replacement(layer, self.hardening_ratio)
+            
+        return model
+
+    def hardening_conv(self, layer, hardening_ratio):
+        #duplicating the weights' output channels based on hardening ratio
+        #the model is already sorted, so the first hardening_ratio% should be replicated
+
+        return layer
