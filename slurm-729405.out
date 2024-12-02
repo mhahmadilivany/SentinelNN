@@ -1,0 +1,360 @@
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance l1-norm
+--pruning-list 0.1,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'l1-norm'
+pruned model test top-1 accuracy: 83.7699966430664
+epoch 0, accuracy: 89.05999755859375%
+epoch 1, accuracy: 89.1500015258789%
+epoch 2, accuracy: 89.52999877929688%
+epoch 3, accuracy: 91.13999938964844%
+epoch 4, accuracy: 91.14999389648438%
+epoch 5, accuracy: 91.27999877929688%
+epoch 6, accuracy: 91.54999542236328%
+epoch 7, accuracy: 91.73999786376953%
+epoch 8, accuracy: 91.70999145507812%
+epoch 9, accuracy: 91.73999786376953%
+model saved with the best achieved accuracy, i.e., epoch 91.73999786376953, accuracy: 9%
+None
+fine tuned model test top-1 accuracy: 91.73999786376953
+pruned model number of MACs: 126027672
+pruned model number of parameters: 8229651
+final accuracy loss: 0.3899993896484375
+MAC improvement: 0.8435108307078842
+Params improvement: 0.8213194511641719
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance vul-gain
+--pruning-list 0.1,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'vul-gain'
+pruned model test top-1 accuracy: 86.78999328613281
+epoch 0, accuracy: 89.9000015258789%
+epoch 1, accuracy: 86.6199951171875%
+epoch 2, accuracy: 89.62999725341797%
+epoch 3, accuracy: 89.5%
+epoch 4, accuracy: 90.94999694824219%
+epoch 5, accuracy: 90.5%
+epoch 6, accuracy: 90.73999786376953%
+epoch 7, accuracy: 91.04000091552734%
+epoch 8, accuracy: 91.36000061035156%
+epoch 9, accuracy: 91.55999755859375%
+model saved with the best achieved accuracy, i.e., epoch 91.55999755859375, accuracy: 9%
+None
+fine tuned model test top-1 accuracy: 91.55999755859375
+pruned model number of MACs: 126027672
+pruned model number of parameters: 8229651
+final accuracy loss: 0.5699996948242188
+MAC improvement: 0.8435108307078842
+Params improvement: 0.8213194511641719
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance salience
+--pruning-list 0.1,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'salience'
+pruned model test top-1 accuracy: 82.68000030517578
+epoch 0, accuracy: 88.94000244140625%
+epoch 1, accuracy: 87.80999755859375%
+epoch 2, accuracy: 87.45999908447266%
+epoch 3, accuracy: 90.44000244140625%
+epoch 4, accuracy: 90.52999877929688%
+epoch 5, accuracy: 90.25%
+epoch 6, accuracy: 91.25%
+epoch 7, accuracy: 91.25%
+epoch 8, accuracy: 91.47999572753906%
+epoch 9, accuracy: 91.43999481201172%
+model saved with the best achieved accuracy, i.e., epoch 91.47999572753906, accuracy: 8%
+None
+fine tuned model test top-1 accuracy: 91.43999481201172
+pruned model number of MACs: 126027672
+pruned model number of parameters: 8229651
+final accuracy loss: 0.69000244140625
+MAC improvement: 0.8435108307078842
+Params improvement: 0.8213194511641719
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance l1-norm
+--pruning-list 0.2,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'l1-norm'
+pruned model test top-1 accuracy: 59.78999710083008
+epoch 0, accuracy: 86.87999725341797%
+epoch 1, accuracy: 85.7699966430664%
+epoch 2, accuracy: 89.36000061035156%
+epoch 3, accuracy: 87.70999908447266%
+epoch 4, accuracy: 90.41000366210938%
+epoch 5, accuracy: 90.04000091552734%
+epoch 6, accuracy: 90.80999755859375%
+epoch 7, accuracy: 91.08000183105469%
+epoch 8, accuracy: 91.25%
+epoch 9, accuracy: 91.14999389648438%
+model saved with the best achieved accuracy, i.e., epoch 91.25, accuracy: 8%
+None
+fine tuned model test top-1 accuracy: 91.14999389648438
+pruned model number of MACs: 100716952
+pruned model number of parameters: 6826761
+final accuracy loss: 0.9800033569335938
+MAC improvement: 0.6997194464448354
+Params improvement: 0.6563700687859112
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance vul-gain
+--pruning-list 0.2,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'vul-gain'
+pruned model test top-1 accuracy: 61.349998474121094
+epoch 0, accuracy: 87.88999938964844%
+epoch 1, accuracy: 86.87999725341797%
+epoch 2, accuracy: 88.15999603271484%
+epoch 3, accuracy: 88.95999908447266%
+epoch 4, accuracy: 89.87000274658203%
+epoch 5, accuracy: 87.98999786376953%
+epoch 6, accuracy: 89.41999816894531%
+epoch 7, accuracy: 88.8499984741211%
+epoch 8, accuracy: 90.0%
+epoch 9, accuracy: 89.91000366210938%
+model saved with the best achieved accuracy, i.e., epoch 90.0, accuracy: 8%
+None
+fine tuned model test top-1 accuracy: 89.91000366210938
+pruned model number of MACs: 100716952
+pruned model number of parameters: 6826761
+final accuracy loss: 2.2199935913085938
+MAC improvement: 0.6997194464448354
+Params improvement: 0.6563700687859112
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance salience
+--pruning-list 0.2,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'salience'
+pruned model test top-1 accuracy: 55.25
+epoch 0, accuracy: 86.23999786376953%
+epoch 1, accuracy: 83.38999938964844%
+epoch 2, accuracy: 88.40999603271484%
+epoch 3, accuracy: 86.89999389648438%
+epoch 4, accuracy: 87.69999694824219%
+epoch 5, accuracy: 87.58999633789062%
+epoch 6, accuracy: 88.47000122070312%
+epoch 7, accuracy: 86.24999237060547%
+epoch 8, accuracy: 89.37000274658203%
+epoch 9, accuracy: 89.48999786376953%
+model saved with the best achieved accuracy, i.e., epoch 89.48999786376953, accuracy: 9%
+None
+fine tuned model test top-1 accuracy: 89.48999786376953
+pruned model number of MACs: 100716952
+pruned model number of parameters: 6826761
+final accuracy loss: 2.6399993896484375
+MAC improvement: 0.6997194464448354
+Params improvement: 0.6563700687859112
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance l1-norm
+--pruning-list 0.3,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'l1-norm'
+pruned model test top-1 accuracy: 44.93000030517578
+epoch 0, accuracy: 86.20999908447266%
+epoch 1, accuracy: 81.41999816894531%
+epoch 2, accuracy: 87.5199966430664%
+epoch 3, accuracy: 88.05999755859375%
+epoch 4, accuracy: 87.80999755859375%
+epoch 5, accuracy: 87.95999908447266%
+epoch 6, accuracy: 89.22999572753906%
+epoch 7, accuracy: 86.23999786376953%
+epoch 8, accuracy: 89.31999969482422%
+epoch 9, accuracy: 89.30000305175781%
+model saved with the best achieved accuracy, i.e., epoch 89.31999969482422, accuracy: 8%
+None
+fine tuned model test top-1 accuracy: 89.30000305175781
+pruned model number of MACs: 78326448
+pruned model number of parameters: 5567469
+final accuracy loss: 2.8299942016601562
+MAC improvement: 0.5706463616902337
+Params improvement: 0.5104516671782928
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance vul-gain
+--pruning-list 0.3,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'vul-gain'
+pruned model test top-1 accuracy: 43.90999984741211
+epoch 0, accuracy: 87.43000030517578%
+epoch 1, accuracy: 84.38999938964844%
+epoch 2, accuracy: 86.66999816894531%
+epoch 3, accuracy: 82.65999603271484%
+epoch 4, accuracy: 88.38999938964844%
+epoch 5, accuracy: 87.5999984741211%
+epoch 6, accuracy: 88.40999603271484%
+epoch 7, accuracy: 87.64999389648438%
+epoch 8, accuracy: 88.6500015258789%
+epoch 9, accuracy: 89.0999984741211%
+model saved with the best achieved accuracy, i.e., epoch 89.0999984741211, accuracy: 9%
+None
+fine tuned model test top-1 accuracy: 89.0999984741211
+pruned model number of MACs: 78326448
+pruned model number of parameters: 5567469
+final accuracy loss: 3.029998779296875
+MAC improvement: 0.5706463616902337
+Params improvement: 0.5104516671782928
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance salience
+--pruning-list 0.3,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'salience'
+pruned model test top-1 accuracy: 37.06999969482422
+epoch 0, accuracy: 86.27999877929688%
+epoch 1, accuracy: 84.37999725341797%
+epoch 2, accuracy: 84.48999786376953%
+epoch 3, accuracy: 84.87999725341797%
+epoch 4, accuracy: 88.12999725341797%
+epoch 5, accuracy: 87.44999694824219%
+epoch 6, accuracy: 88.5199966430664%
+epoch 7, accuracy: 88.11000061035156%
+epoch 8, accuracy: 88.54000091552734%
+epoch 9, accuracy: 87.5999984741211%
+model saved with the best achieved accuracy, i.e., epoch 88.54000091552734, accuracy: 8%
+None
+fine tuned model test top-1 accuracy: 87.5999984741211
+pruned model number of MACs: 78326448
+pruned model number of parameters: 5567469
+final accuracy loss: 4.529998779296875
+MAC improvement: 0.5706463616902337
+Params improvement: 0.5104516671782928
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance l1-norm
+--pruning-list 0.4,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'l1-norm'
+pruned model test top-1 accuracy: 32.7400016784668
+epoch 0, accuracy: 85.5999984741211%
+epoch 1, accuracy: 83.77999877929688%
+epoch 2, accuracy: 86.75999450683594%
+epoch 3, accuracy: 81.93000030517578%
+epoch 4, accuracy: 87.39999389648438%
+epoch 5, accuracy: 84.52999877929688%
+epoch 6, accuracy: 87.91999816894531%
+epoch 7, accuracy: 86.83999633789062%
+epoch 8, accuracy: 88.47000122070312%
+epoch 9, accuracy: 86.35999298095703%
+model saved with the best achieved accuracy, i.e., epoch 88.47000122070312, accuracy: 8%
+None
+fine tuned model test top-1 accuracy: 86.35999298095703
+pruned model number of MACs: 58692496
+pruned model number of parameters: 4437972
+final accuracy loss: 5.7700042724609375
+MAC improvement: 0.4548768165719701
+Params improvement: 0.3824976518028148
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance vul-gain
+--pruning-list 0.4,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'vul-gain'
+pruned model test top-1 accuracy: 26.149999618530273
+epoch 0, accuracy: 85.0%
+epoch 1, accuracy: 83.79000091552734%
+epoch 2, accuracy: 86.93000030517578%
+epoch 3, accuracy: 85.95999908447266%
+epoch 4, accuracy: 85.53999328613281%
+epoch 5, accuracy: 84.66999816894531%
+epoch 6, accuracy: 87.97999572753906%
+epoch 7, accuracy: 85.52999877929688%
+epoch 8, accuracy: 87.65999603271484%
+epoch 9, accuracy: 87.33999633789062%
+model saved with the best achieved accuracy, i.e., epoch 87.97999572753906, accuracy: 6%
+None
+fine tuned model test top-1 accuracy: 87.33999633789062
+pruned model number of MACs: 58692496
+pruned model number of parameters: 4437972
+final accuracy loss: 4.790000915527344
+MAC improvement: 0.4548768165719701
+Params improvement: 0.3824976518028148
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 128
+--run-mode pruning
+--pruning-method hm
+--importance salience
+--pruning-list 0.4,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'salience'
+pruned model test top-1 accuracy: 16.76999855041504
+epoch 0, accuracy: 83.15999603271484%
+epoch 1, accuracy: 75.88999938964844%
+epoch 2, accuracy: 86.58999633789062%
+epoch 3, accuracy: 81.81999969482422%
+epoch 4, accuracy: 85.40999603271484%
+epoch 5, accuracy: 84.16999816894531%
+epoch 6, accuracy: 86.25999450683594%
+epoch 7, accuracy: 85.55999755859375%
+epoch 8, accuracy: 86.12999725341797%
+epoch 9, accuracy: 86.02999877929688%
+model saved with the best achieved accuracy, i.e., epoch 86.58999633789062, accuracy: 2%
+None
+fine tuned model test top-1 accuracy: 86.02999877929688
+pruned model number of MACs: 58692496
+pruned model number of parameters: 4437972
+final accuracy loss: 6.099998474121094
+MAC improvement: 0.4548768165719701
+Params improvement: 0.3824976518028148

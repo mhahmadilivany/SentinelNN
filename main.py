@@ -10,14 +10,14 @@ import utils
 import copy
 import torch.nn as nn
 import pruning
-import importance_analysis as vul
+import importance_analysis as imp
 
 
 
 if __name__ == "__main__":
     arg_list = sys.argv[1:]
     short_options = "m:b:d:r"
-    long_options = ["model=", "batch-size=", "dataset=", "run-mode=", "pruning-method=", "pruning-list=", "importance="]
+    long_options = ["run-mode=", "model=", "batch-size=", "dataset=", "pruning-method=", "pruning-list=", "importance="]
     try:
         arguments, values = getopt.getopt(arg_list, short_options, long_options)
         for arg, val in arguments:
@@ -64,6 +64,7 @@ if __name__ == "__main__":
     log_file = open(log_file_name, 'w')
     log_file.close()
 
+    # examines the accuracy of CNNs
     if run_mode == "test":
         net_accuracy = models_utils.evaluate(model, testloader, device=device)
         total_params = sum(p.numel() for p in model.parameters())
@@ -75,29 +76,21 @@ if __name__ == "__main__":
         log_file.close()
         print("test done successfuly!")
         
-    #create prune_utils for the related functions
-    #develop based on apply_channel_sorting
-    #have a separate function for resilience analysis, replaceable by different functions
-    #apply channel sorting
-    #recursive iteration over the CNN
-    #apply one prune ratio for conv layers and one for FC
-    #another function for refining which includes regularization as well
-    #save and load the pruned CNN 
+    # prunes Conv2d layers based on the assigned pruning ratio and importance analysis
     elif run_mode == "pruning":
         handler = utils.AnalysisHandler()
         
         #registering commands for importance analysis 
-        handler.register("l1-norm", vul.L1_norm)
-        handler.register("vul-gain", vul.vulnerability_gain)
+        handler.register("l1-norm", imp.L1_norm)
+        handler.register("vul-gain", imp.vulnerability_gain)
+        handler.register("salience", imp.Salience)
 
         model_cp = copy.deepcopy(model)
         pu = utils.prune_utils(model_cp, trainloader, classes_count, pruning_method, device)
         pu.set_pruning_ratios(pruning_ratio_list)
 
         sorted_model = pu.channel_sorting(model_cp, handler, importance_command)
-        
         pruned_model = pu.homogeneous_prune(sorted_model)
-        print(pruned_model)
         
         model_accuracy = models_utils.evaluate(model, testloader, device=device)
         model_params = sum(p.numel() for p in model.parameters())
@@ -108,12 +101,11 @@ if __name__ == "__main__":
         pruned_macs = torchprofile.profile_macs(pruned_model, dummy_input)
         print("pruned model test top-1 accuracy: " + str(pruned_accuracy))
 
-        #fine tuning the pruned model
+        #fine tuning the pruned model and saves the best accuracy
         finetune_epochs = 10
-        finetune_model = pruning.fine_tune(pruned_model, trainloader, testloader, finetune_epochs, device)
+        finetune_model = pruning.fine_tune(pruned_model, trainloader, testloader, finetune_epochs, device, log_direction, pruning_vals)
+        models_utils.load_params(finetune_model, log_direction + '/../pruned_model-' + pruning_vals + '.pth', device)       #loads the model which achieved best accuracy
         finetune_accuracy = models_utils.evaluate(finetune_model, testloader, device=device)
-        
-        torch.save(finetune_model.state_dict(), log_direction + '/../pruned_model-' + pruning_vals + '.pth')
 
         print("fine tuned model test top-1 accuracy: " + str(finetune_accuracy))
         print("pruned model number of MACs: " + str(pruned_macs)) 
@@ -122,13 +114,13 @@ if __name__ == "__main__":
         print("MAC improvement: " + str(pruned_params / model_params))
         print("Params improvement: " + str(pruned_macs / model_macs))
 
-
+    # loads pruned models
     elif run_mode == "load-pruned":
         pruned_file_name = log_direction + '/../pruned_model-' + pruning_vals + '.pth'
         model_cp = copy.deepcopy(model)
         pu = utils.prune_utils(model_cp, pruning_method)
         pu.set_pruning_ratios(pruning_ratio_list)
-        pruned_model = pu.homogeneous_prune()
+        pruned_model = pu.homogeneous_prune(model_cp)
 
         models_utils.load_params(pruned_model, pruned_file_name, device)
         
@@ -137,25 +129,19 @@ if __name__ == "__main__":
         model_macs = torchprofile.profile_macs(pruned_model, dummy_input)
         print(model_accuracy, model_params, model_macs)
         
-    
-    elif run_mode == "vul-analysis":
-        handler = utils.analysis_handler()
-        
-        #registering commands for importance analysis 
-        handler.register("l1-norm", pruning.channel_L1_norm)
-        handler.register("vuln-gain", vul.channels_vulnerability)
 
-        if importance_command == "l1-norm":
-            handler.execute(importance_command, )
-    
-    
+
     #TODO: model modification for channel duplication
     #add correction_utils for related functions
     #develop a class instead of Conv2d, to replace them with it
     #it includes duplication and correction and outputs the same expected size
     #saving and loading them 
+    
+
 
     #TODO: pruning with non-unified pruning ratio + refining
     #TODO: iterative pruning + refining
+
+
 
     

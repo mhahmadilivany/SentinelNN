@@ -97,7 +97,24 @@ class prune_utils():
                 name += name1 + "."
                 self._get_separated_layers(layer, name)
         
-    
+    def _get_separated_layers_reversed(self, 
+                              model: nn.Module,
+                              name: str = '') -> None:
+        
+        for name1, layer in reversed(list(model.named_children())):
+            if list(layer.children()) == []:
+                if isinstance(layer, nn.Conv2d):
+                    name_ = name + name1
+                    self.conv_layers.append([name_, layer])
+                elif isinstance(layer, nn.BatchNorm2d):
+                    self.bn_layers.append(layer)
+                elif isinstance(layer, nn.Linear):
+                    self.fc_layers.append(layer)
+
+            else:
+                name += name1 + "."
+                self._get_separated_layers_reversed(layer, name)
+
     def _reset_params(self):
         self.conv_count = 0
         self.conv_layers = []
@@ -147,17 +164,24 @@ class prune_utils():
                         handler: AnalysisHandler,
                         command: str="l1-norm") -> nn.Module:
         
+        self._reset_params()
         if command == "l1-norm":
             sort_index_conv_dict = handler.execute(command, model, ...)  
+            self._get_separated_layers(model)
             
         elif command == "vul-gain":
             sort_index_conv_dict = handler.execute(command, model, self.trainloader, self.classes_count, self.device)
+            self._get_separated_layers(model)
 
-        self._reset_params()
-        self._get_separated_layers(model)
+        elif command == "salience":
+            sort_index_conv_dict = handler.execute(command, model, self.classes_count, self.device)
+            self._get_separated_layers_reversed(model)
+            self.conv_layers.reverse()
+            self.bn_layers.reverse()
+
         assert len(self.conv_layers) != 0
         assert len(self.conv_layers) == len(self.bn_layers)
-
+        
         with torch.no_grad():
             for i in range(len(self.conv_layers) - 1):
                 conv_name = self.conv_layers[i][0]

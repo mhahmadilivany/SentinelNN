@@ -62,7 +62,6 @@ class vulnerability_gain():
                 name += name1 + "."
                 self.gain_norm_executor(layer, name)
 
-    
     def channels_vulnerability(self, 
                                model: nn.Module, 
                                target_layer: nn.Module) -> torch.tensor:
@@ -124,5 +123,66 @@ class vulnerability_gain():
         del trainloader
         torch.cuda.empty_cache()
         sort_index = torch.argsort(vulnerability, descending=True)
+
+        return sort_index
+    
+
+class Salience():
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.salience = torch.ones(args[1], device=args[2])     #num_classes: int
+        self.device = args[2]                                   #device: 'cuda', 'cpu'
+        self.ind_dict = {}
+    
+    def __call__(self, *args: nn.Module, **kwargs: None) -> Any:
+        self.Salience_executor(args[0])                         #model
+        return self.ind_dict
+        
+    def Salience_executor(self, model, name='', ) -> None:
+        for name1, layer in reversed(list(model.named_children())):
+            if list(layer.children()) == []:
+                if isinstance(layer, nn.Linear):
+                    name_ = name + name1
+                    self.ind_dict[name_] = self.neurons_salience(layer.weight)
+
+                elif isinstance(layer, nn.Conv2d):
+                    name_ = name + name1
+                    #self.ind_dict[name_] = self.channels_salience(layer.weight)
+                    self.ind_dict[name_] = torch.argsort(self.salience, descending=True)
+                    _ = self.channels_salience(layer.weight)
+
+
+            else:
+                name += name1 + "."
+                self.Salience_executor(layer, name)
+
+    def neurons_salience(self,
+                          weight: torch.tensor) -> torch.tensor:
+        
+        #print(self.salience.unsqueeze(1).size())
+        #print(weight.detach().size())
+
+        self.salience = torch.sum(self.salience.unsqueeze(1) * torch.abs(weight.detach()), dim=0)
+        sort_index = torch.argsort(self.salience, descending=True)
+
+        return sort_index
+    
+    def channels_salience(self, 
+                        weight: torch.tensor) -> torch.tensor:
+        
+        #if len(self.salience.size()) != 4:      #when it comes back from Linear
+        #    self.salience.reshape(weight.shape[0], weight.shape[1], weight.shape[2], weight.shape[3])
+        #print(self.salience.unsqueeze(1).size())
+        #print(weight.detach().size())
+
+        out_channels = weight.shape[0]
+        new_salience = torch.zeros(weight.shape[1], device=self.device)
+
+        for i_c in range(out_channels):
+            channel_weight = torch.abs(weight.detach()[i_c])
+            #print(self.salience[i_c].size(), channel_weight.size())
+            new_salience += torch.sum(torch.sum(torch.sum(self.salience[i_c] * channel_weight, dim=2), dim=1), dim=0)
+            
+        self.salience = new_salience
+        sort_index = torch.argsort(self.salience, descending=True)
 
         return sort_index

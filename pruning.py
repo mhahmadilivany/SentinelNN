@@ -42,23 +42,26 @@ def fine_tune(model: nn.Module,
               trainloader: DataLoader,
               testloader: DataLoader,
               eopchs: int,
-              device: Union[torch.device, str]) -> nn.Module:
+              device: Union[torch.device, str],
+              log_direction: str,
+              pruning_vals: str) -> nn.Module:
     
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, eopchs)
     criterion = nn.CrossEntropyLoss()
 
     best_accuracy = 0
-    best_epoch = 0
+    best_epoch = -1
     for epoch in range(eopchs):
         models_utils.train(model, trainloader, criterion, optimizer, scheduler, device=device)
         accuracy = models_utils.evaluate(model, testloader, device=device)
-        is_best = accuracy > best_accuracy
+        is_best = accuracy >= best_accuracy
         if is_best:
             best_accuracy = accuracy
             best_epoch = epoch
-        print(epoch, accuracy)
+            torch.save(model.state_dict(), log_direction + '/../pruned_model-' + pruning_vals + '.pth')
+        print("epoch {}, accuracy: {}%".format(epoch, accuracy))
         
-    print(best_accuracy, best_epoch)
+    print(print("model saved with the best achieved accuracy, i.e., epoch {0}, accuracy: {1}%".format(best_epoch, best_accuracy)))
 
     return model

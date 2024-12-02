@@ -1,3 +1,3 @@
-model test top-1 accuracy: 93.0
+model test top-1 accuracy: 96.0
 total number of MACs: 153445376
 total number of parameters: 9756426

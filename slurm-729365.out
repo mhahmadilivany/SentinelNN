@@ -1,0 +1,96 @@
+Using cache found in /gpfs/mariana/home/moahma/.cache/torch/hub/chenyaofo_pytorch-cifar-models_master
+--model vgg11_bn
+--dataset cifar10
+--batch-size 64
+--run-mode pruning
+--pruning-method hm
+--importance l1-norm
+--pruning-list 0.5,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'l1-norm'
+pruned model test top-1 accuracy: 14.0625
+0 75.0
+1 85.9375
+2 70.3125
+3 79.6875
+4 81.25
+5 85.9375
+6 79.6875
+7 85.9375
+8 82.8125
+9 78.125
+85.9375 1
+
+fine tuned model test top-1 accuracy: 78.125
+pruned model number of MACs: 41598976
+pruned model number of parameters: 3430026
+final accuracy loss: 17.1875
+MAC improvement: 0.3515658295363487
+Params improvement: 0.2710995735707279
+
+
+
+--model vgg11_bn
+--dataset cifar10
+--batch-size 64
+--run-mode pruning
+--pruning-method hm
+--importance vul-gain
+--pruning-list 0.5,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'vul-gain'
+pruned model test top-1 accuracy: 10.9375
+0 64.0625
+1 76.5625
+2 62.5
+3 81.25
+4 81.25
+5 84.375
+6 82.8125
+7 81.25
+8 85.9375
+9 81.25
+85.9375 8
+
+fine tuned model test top-1 accuracy: 81.25
+pruned model number of MACs: 41598976
+pruned model number of parameters: 3430026
+final accuracy loss: 14.0625
+MAC improvement: 0.3515658295363487
+Params improvement: 0.2710995735707279
+
+
+
+
+--model vgg11_bn
+--dataset cifar10
+--batch-size 64
+--run-mode pruning
+--pruning-method hm
+--importance salience
+--pruning-list 0.5,0
+Files already downloaded and verified
+Files already downloaded and verified
+Executing 'salience'
+
+pruned model test top-1 accuracy: 9.375
+0 59.375
+1 78.125
+2 73.4375
+3 81.25
+4 76.5625
+5 79.6875
+6 81.25
+7 79.6875
+8 84.375
+9 81.25
+84.375 8
+
+fine tuned model test top-1 accuracy: 81.25
+pruned model number of MACs: 41598976
+pruned model number of parameters: 3430026
+final accuracy loss: 14.0625
+MAC improvement: 0.3515658295363487
+Params improvement: 0.2710995735707279
