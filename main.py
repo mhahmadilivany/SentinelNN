@@ -17,7 +17,7 @@ import importance_analysis as imp
 if __name__ == "__main__":
     arg_list = sys.argv[1:]
     short_options = "m:b:d:r"
-    long_options = ["run-mode=", "model=", "batch-size=", "dataset=", "pruning-method=", "pruning-list=", "importance="]
+    long_options = ["run-mode=", "model=", "batch-size=", "dataset=", "pruning-method=", "pruning-list=", "importance=", "hardening-ratio="]
     try:
         arguments, values = getopt.getopt(arg_list, short_options, long_options)
         for arg, val in arguments:
@@ -30,7 +30,7 @@ if __name__ == "__main__":
                 batch_size = int(val)
             elif arg in ["-r", "--run-mode"]:
                 run_mode = str(val)
-            elif arg in ["-h", "--pruning-method"]:
+            elif arg in ["-u", "--pruning-method"]:
                 pruning_method = str(val)
             elif arg in ["-p", "--pruning-list"]:
                 pruning_vals = str(val)
@@ -40,6 +40,8 @@ if __name__ == "__main__":
                     pruning_ratio_list.append(float(item))
             elif arg in ["-i", "--importance"]:
                 importance_command = str(val)
+            elif arg in ["-h", "--hardening-ratio"]:
+                hardening_ratio = float(val)
     except:
         raise Exception("parameters are not specified correctly!")
 
@@ -93,12 +95,10 @@ if __name__ == "__main__":
         pruned_model = pu.homogeneous_prune(sorted_model)
         
         model_accuracy = models_utils.evaluate(model, testloader, device=device)
-        model_params = sum(p.numel() for p in model.parameters())
-        model_macs = torchprofile.profile_macs(model, dummy_input)
+        model_params, model_macs = models_utils.size_profile(model, dummy_input)
 
         pruned_accuracy = models_utils.evaluate(pruned_model, testloader, device=device)
-        pruned_params = sum(p.numel() for p in pruned_model.parameters())
-        pruned_macs = torchprofile.profile_macs(pruned_model, dummy_input)
+        pruned_params, pruned_macs = models_utils.size_profile(pruned_model, dummy_input)
         print("pruned model test top-1 accuracy: " + str(pruned_accuracy))
 
         #fine tuning the pruned model and saves the best accuracy
@@ -131,11 +131,8 @@ if __name__ == "__main__":
         
 
 
-    #TODO: model modification for channel duplication
-    #add correction_utils for related functions
-    #develop a class instead of Conv2d, to replace them with it
-    #it includes duplication and correction and outputs the same expected size
-    #saving and loading them 
+    # model modification for channel duplication
+    # TODO: saving and loading them 
     elif run_mode == "hardening":
         handler = utils.AnalysisHandler()
         
@@ -143,7 +140,10 @@ if __name__ == "__main__":
         handler.register("l1-norm", imp.L1_norm)
         handler.register("vul-gain", imp.vulnerability_gain)
         handler.register("salience", imp.Salience)
+        t_tmp = time.time()
         model_accuracy = models_utils.evaluate(model, testloader, device=device)
+        model_time = time.time() - t_tmp
+        model_params, model_macs = models_utils.size_profile(model, dummy_input)
         print(model_accuracy)
 
         model_cp = copy.deepcopy(model)
@@ -152,11 +152,17 @@ if __name__ == "__main__":
 
         sorted_model = pu.channel_sorting(model_cp, handler, importance_command)
         
-        hr = utils.hardening_utils(hardening_ratio=0.1)
-        hardened_model = hr.hardening_conv(sorted_model) #replace all Conv2d with HardenedConv2d
+        hr = utils.hardening_utils(hardening_ratio)
+        hardened_model = hr.conv_replacement(sorted_model) #replace all Conv2d with HardenedConv2d
+        t_tmp = time.time()
         hardened_accuracy = models_utils.evaluate(hardened_model, testloader, device=device)
+        hardened_time = time.time() - t_tmp
+        hardened_params, hardened_macs = models_utils.size_profile(hardened_model, dummy_input)
         
         print(hardened_accuracy)
+        print("MACs overhead: " + str(hardened_params / model_params))
+        print("Params overhead: " + str(hardened_macs / model_macs))
+        print("Performance overhead: " + str(hardened_time / model_time))
 
     
 

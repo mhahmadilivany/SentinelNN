@@ -28,7 +28,6 @@ class AnalysisHandler():
             raise ValueError(f"Unknown command: {command}. Available commands: {list(self.functions.keys())}")
         
 
-
 class prune_utils():
     def __init__(self, 
                  model: nn.Module,
@@ -210,7 +209,6 @@ class hardening_utils():
             if list(layer.children()) == []:
                 if isinstance(layer, nn.Conv2d):
                     hardened_layer = hardening.HardenedConv2d(
-                        hardening_ratio=self.hardening_ratio,
                         in_channels=layer.in_channels,
                         out_channels=layer.out_channels,
                         kernel_size=layer.kernel_size,
@@ -230,12 +228,34 @@ class hardening_utils():
                     setattr(model, name, hardened_layer)
 
             else:
-                self.conv_replacement(layer, self.hardening_ratio)
+                self.conv_replacement(layer)
             
         return model
 
-    def hardening_conv(self, layer, hardening_ratio):
-        #duplicating the weights' output channels based on hardening ratio
-        #the model is already sorted, so the first hardening_ratio% should be replicated
+    # duplicating the weights' output channels based on hardening ratio
+    # the model is already sorted, so the first hardening_ratio% should be replicated
+    def hardening_conv(self, layer):
+        duplication_count = int(layer.out_channels * self.hardening_ratio) 
+        duplication_count = 1 if duplication_count == 0 else duplication_count
+        layer.duplicated_channels = duplication_count
 
+        new_out_channels = layer.out_channels + duplication_count
+
+        _, b, c, d = layer.weight.size()
+        new_weight = torch.zeros(new_out_channels, b, c, d)
+        new_bias = torch.zeros(new_out_channels)
+
+        # duplicating the channels
+        with torch.no_grad():
+            for i in range(duplication_count):
+                new_weight[i] = layer.weight[i]
+                new_weight[duplication_count + i] = layer.weight[i]
+                new_bias[i] = layer.bias[i]
+                new_bias[duplication_count + i] = layer.bias[i]
+            new_weight[2*duplication_count:] = layer.weight[duplication_count:]
+            new_bias[2*duplication_count:] = layer.bias[duplication_count:]
+
+            layer.weight = nn.Parameter(new_weight)
+            layer.bias = nn.Parameter(new_bias)
+        
         return layer

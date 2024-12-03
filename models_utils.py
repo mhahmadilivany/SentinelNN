@@ -5,7 +5,8 @@ from torch.optim.lr_scheduler import *
 from torch.utils.data import DataLoader
 from torchvision.datasets import *
 from torchvision.transforms import *
-from typing import Union
+from typing import Union, Any, Tuple
+import torchprofile
 
 from torchvision.models import resnet50, ResNet50_Weights
 from torchvision.models import resnet34, ResNet34_Weights
@@ -107,4 +108,11 @@ def evaluate(
 
     return (num_correct / num_samples * 100).item()
 
+
+def size_profile(model: nn.Module,
+                 dummy_input: torch.tensor) -> Tuple[int, int]:
+    params = sum(p.numel() for p in model.parameters())
+    macs = torchprofile.profile_macs(model, dummy_input)
+
+    return params, macs
 

@@ -1,19 +1,30 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#from torch.utils.data import DataLoader
-
-from typing import Union
-
 
 class HardenedConv2d(nn.Conv2d):
-    def __init__(self, hardening_ratio, *args, **kwargs):
-        self.hardening_ratio = hardening_ratio
+    def __init__(self, *args, **kwargs):
+        self.hardening_ratio = 0
+        self.duplicated_channels = 0
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         super(HardenedConv2d, self).__init__(*args, **kwargs)
 
-    def forward(self, x):
-        #input channels remain intact
-        #applying normal forward which leads to more output channels
-        #reducing the size of output channels while correction, leading to the expected out_channels in next layer
+    def forward(self, 
+                input_activation: torch.tensor) -> torch.tensor:
+        # forward pass for the conv layer, includes duplicated channels
+        out_activation = super(HardenedConv2d, self).forward(input_activation)
 
-        return super(HardenedConv2d, self).forward(x)
+        # compares the cuplicated channles
+        correction_mask = torch.ge(out_activation[:, :self.duplicated_channels, :, :], 
+                                   out_activation[:, self.duplicated_channels:2*self.duplicated_channels, :, :])
+        
+        # corrects and merges duplicated channels for the output
+        corrected_results = out_activation[:, :self.duplicated_channels] * torch.logical_not(correction_mask) + \
+                 out_activation[:, self.duplicated_channels:2*self.duplicated_channels] * correction_mask
+        
+        batch, out_ch, w, h = out_activation.size()
+        new_out_activation = torch.zeros((batch, out_ch - self.duplicated_channels, w, h), device=self.device)
+        new_out_activation[:, :self.duplicated_channels] = corrected_results.detach()
+        new_out_activation[:, self.duplicated_channels:]  = out_activation[:, 2*self.duplicated_channels:].detach()
+
+        return new_out_activation
