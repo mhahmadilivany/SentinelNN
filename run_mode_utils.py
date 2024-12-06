@@ -40,7 +40,7 @@ def pruning_func(model: nn.Module,
 
     model_accuracy, model_params, model_macs = test(model, testloader, device, dummy_input, logger)
     
-    handler = handlers.AnalysisHandler()
+    handler = handlers.AnalysisHandler(logger)
         
     # registering commands for importance analysis 
     handler.register("l1-norm", imp.L1_norm)
@@ -75,3 +75,38 @@ def pruning_func(model: nn.Module,
     logger.info(f"Params improvement: {pruned_macs / model_macs}")
 
     
+def hardening_func(model: nn.Module,
+                   trainloader: DataLoader,
+                   testloader: DataLoader,
+                   dummy_input: torch.tensor,
+                   classes_count: int,
+                   pruning_method: str,
+                   hardening_ratio: float,
+                   importance_command: str,
+                   device: Union[torch.device, str],
+                   logger: logging.Logger) -> None:
+    
+    handler = handlers.AnalysisHandler(logger)
+        
+    #registering commands for importance analysis 
+    handler.register("l1-norm", imp.L1_norm)
+    handler.register("vul-gain", imp.vulnerability_gain)
+    handler.register("salience", imp.Salience)
+
+    _, model_params, model_macs = test(model, testloader, device, dummy_input, logger)
+
+    model_cp = copy.deepcopy(model)
+    pu = utils.prune_utils(model_cp, trainloader, classes_count, pruning_method, device)
+
+    sorted_model = pu.channel_sorting(model_cp, handler, importance_command)
+    logger.info("channels are sorted")
+    
+    hr = utils.hardening_utils(hardening_ratio)
+    hardened_model = hr.conv_replacement(sorted_model) #replace all Conv2d with HardenedConv2d
+    logger.info("model is hardened")
+
+    hardened_accuracy, hardened_params, hardened_macs = test(hardened_model, testloader, device, dummy_input, logger)
+    
+    logger.info(f"model test top-1 accuracy: {hardened_accuracy}%")
+    logger.info(f"MACs overhead: {hardened_params / model_params}")
+    logger.info(f"Params overhead: {hardened_macs / model_macs}")

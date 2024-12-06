@@ -35,7 +35,9 @@ class LogHandler():
     
 
 class AnalysisHandler():
-    def __init__(self) -> None:
+    def __init__(self,
+                 logger: logging.Logger) -> None:
+        self.logger = logger
         self.functions: Dict[str, Callable] = {}
 
     def register(self,
@@ -44,17 +46,21 @@ class AnalysisHandler():
         self.functions[command] = func
 
     def execute(self, 
-                command: str, *args, **kwargs) -> Any:
+                command: str, 
+                *args, **kwargs) -> Any:
         if command in self.functions:
-            print(f"Executing '{command}'")
+            self.logger.info(f"Executing '{command}'")
             obj = self.functions[command](*args, **kwargs)
             return obj(*args, **kwargs)
         else:
+            self.logger.error(f"Unknown command: {command}. Available commands: {list(self.functions.keys())}")
             raise ValueError(f"Unknown command: {command}. Available commands: {list(self.functions.keys())}")
 
 
 class RunModeHandler():
-    def __init__(self) -> None:
+    def __init__(self, 
+                 logger: logging.Logger) -> None:
+        self.logger = logger
         self.run_modes: Dict[str, Callable] = {}
     
     def register(self,
@@ -64,13 +70,12 @@ class RunModeHandler():
 
     def execute(self,
                 run_mode: str, 
-                logger: logging.Logger,
                 *args, **kwargs):
         if run_mode in self.run_modes:
-            logger.info(f"Executing '{run_mode}'")
+            self.logger.info(f"Executing '{run_mode}'")
             func = self.run_modes[run_mode]  #(*args, **kwargs)
             return func(*args, **kwargs)
         else:
-            logger.error(f"Unknown run-mode: {run_mode}. Available run-modes: {list(self.run_modes.keys())}")
+            self.logger.error(f"Unknown run-mode: {run_mode}. Available run-modes: {list(self.run_modes.keys())}")
             raise ValueError(f"Unknown run-mode: {run_mode}. Available run-modes: {list(self.run_modes.keys())}")
 

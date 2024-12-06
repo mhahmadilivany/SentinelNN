@@ -62,10 +62,8 @@ def fine_tune(model: nn.Module,
             best_accuracy = accuracy
             best_epoch = epoch
             torch.save(model.state_dict(), './../pruned_model-' + pruning_vals + '.pth')
-        #print("epoch {}, accuracy: {}%".format(epoch, accuracy))
         logger.info(f"epoch {epoch}, accuracy: {accuracy}%")
         
-    #print("model saved with the best achieved accuracy, i.e., epoch {0}, accuracy: {1}%".format(, ))
     logger.info("model saved with the best achieved accuracy, i.e., epoch {best_epoch}, accuracy: {best_accuracy}%")
 
     return model

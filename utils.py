@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from typing import Union
 import hardening
 import handlers
+import logging
 
 
 class prune_utils():
@@ -35,7 +36,7 @@ class prune_utils():
                            pruning_params: Union[float, list]) -> None:
         
         if not isinstance(pruning_params, list) and not isinstance(pruning_params, float):
-            raise TypeError(f"Expected 'pruning_params' to be a list or float, got {type(pruning_params).__name__}")
+            raise TypeError(f"Expected 'pruning_params' to be a float, got {type(pruning_params).__name__}")
         
         if self.pruning_method == "hm":
             self.conv_pruning_ratio = pruning_params
@@ -143,7 +144,8 @@ class prune_utils():
     def channel_sorting(self, 
                         model: nn.Module,
                         handler: handlers.AnalysisHandler,
-                        command: str="l1-norm") -> nn.Module:
+                        command: str="l1-norm", 
+                        ) -> nn.Module:
         
         self._reset_params()
         if command == "l1-norm":
@@ -151,7 +153,7 @@ class prune_utils():
             self._get_separated_layers(model)
             
         elif command == "vul-gain":
-            sort_index_conv_dict = handler.execute(command, model, self.trainloader, self.classes_count, self.device)
+            sort_index_conv_dict = handler.execute(command,model, self.trainloader, self.classes_count, self.device)
             self._get_separated_layers(model)
 
         elif command == "salience":
