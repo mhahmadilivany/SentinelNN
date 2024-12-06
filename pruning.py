@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import models_utils
 from typing import Union
+import logging
 
 
 def out_channel_sorting(conv_layer: nn.Module, 
@@ -43,9 +44,10 @@ def fine_tune(model: nn.Module,
               testloader: DataLoader,
               eopchs: int,
               device: Union[torch.device, str],
-              log_direction: str,
+              logger: logging.Logger,
               pruning_vals: str) -> nn.Module:
     
+    logger.info("fine-tuning the pruned model")
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, eopchs)
     criterion = nn.CrossEntropyLoss()
@@ -59,9 +61,11 @@ def fine_tune(model: nn.Module,
         if is_best:
             best_accuracy = accuracy
             best_epoch = epoch
-            torch.save(model.state_dict(), log_direction + '/../pruned_model-' + pruning_vals + '.pth')
-        print("epoch {}, accuracy: {}%".format(epoch, accuracy))
+            torch.save(model.state_dict(), './../pruned_model-' + pruning_vals + '.pth')
+        #print("epoch {}, accuracy: {}%".format(epoch, accuracy))
+        logger.info(f"epoch {epoch}, accuracy: {accuracy}%")
         
-    print(print("model saved with the best achieved accuracy, i.e., epoch {0}, accuracy: {1}%".format(best_epoch, best_accuracy)))
+    #print("model saved with the best achieved accuracy, i.e., epoch {0}, accuracy: {1}%".format(, ))
+    logger.info("model saved with the best achieved accuracy, i.e., epoch {best_epoch}, accuracy: {best_accuracy}%")
 
     return model
