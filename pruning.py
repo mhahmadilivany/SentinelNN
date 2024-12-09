@@ -51,6 +51,7 @@ def fine_tune(model: nn.Module,
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, eopchs)
     criterion = nn.CrossEntropyLoss()
+    log_dir = logger.handlers[0].baseFilename.split("log")[0]
 
     best_accuracy = 0
     best_epoch = -1
@@ -61,7 +62,8 @@ def fine_tune(model: nn.Module,
         if is_best:
             best_accuracy = accuracy
             best_epoch = epoch
-            torch.save(model.state_dict(), './../pruned_model-' + pruning_vals + '.pth')
+            
+            torch.save(model.state_dict(), f'{log_dir}/../pruned_model-{pruning_vals}.pth')
         logger.info(f"epoch {epoch}, accuracy: {accuracy}%")
         
     logger.info("model saved with the best achieved accuracy, i.e., epoch {best_epoch}, accuracy: {best_accuracy}%")

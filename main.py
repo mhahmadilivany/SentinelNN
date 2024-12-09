@@ -24,10 +24,14 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, choices=["cifar10", "cifar100", "imagenet"], required=True)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--is-pruning", type=bool, default=False)
+    parser.add_argument("--is-pruned", type=bool, default=False)
     parser.add_argument("--pruning-method", type=str, default="hm")
     parser.add_argument("--pruning-ratio", type=float, default=0.0)
+    parser.add_argument("--pruned-checkpoint", type=str, default="./")
     parser.add_argument("--is-hardening", type=bool, default=False)
+    parser.add_argument("--is-hardened", type=bool, default=False)
     parser.add_argument("--hardening-ratio", type=float, default=0.0)
+    parser.add_argument("--hardened-checkpoint", type=str, default="./")
     parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience"], default="")
 
 
@@ -37,10 +41,14 @@ if __name__ == "__main__":
     dataset_name = args.dataset
     batch_size = args.batch_size
     is_pruning = args.is_pruning
+    is_pruned = args.is_pruned
     pruning_method = args.pruning_method
     pruning_ratio = args.pruning_ratio
+    pruned_checkpoint = args.pruned_checkpoint
     is_hardening = args.is_hardening
+    is_hardened = args.is_hardened
     hardening_ratio = args.hardening_ratio
+    hardened_checkpoint = args.hardened_checkpoint
     importance_command = args.importance 
 
     # create log file
@@ -56,6 +64,19 @@ if __name__ == "__main__":
     trainloader, classes_count, dummy_input = dataset_utils.load_dataset(dataset_name, batch_size, is_train=True)
     testloader, classes_count, dummy_input = dataset_utils.load_dataset(dataset_name, batch_size, is_train=False)
     model = models_utils.load_model(model_name, dataset_name, device)
+
+    if is_pruned:
+        pu = utils.prune_utils(model, pruning_method, classes_count, pruning_method)
+        pu.set_pruning_ratios(pruning_ratio)
+        model = pu.homogeneous_prune(model)
+        models_utils.load_params(model, pruned_checkpoint, device)
+
+    if is_hardened:
+        hr = utils.hardening_utils(hardening_ratio)
+        model = hr.conv_replacement(model)
+        models_utils.load_params(model, hardened_checkpoint, device)
+
+
     dummy_input = dummy_input.to(device)
 
     runModeHandler = handlers.RunModeHandler(logger)
@@ -74,22 +95,6 @@ if __name__ == "__main__":
         runModeHandler.execute(run_mode, model, trainloader, testloader, dummy_input, classes_count, 
                                pruning_method, hardening_ratio, importance_command, device, logger)
     
-
-    # loads pruned models
-    if run_mode == "load-pruned":
-        pruned_file_name = log_direction + '/../pruned_model-' + str(pruning_ratio) + '.pth'
-        model_cp = copy.deepcopy(model)
-        pu = utils.prune_utils(model_cp, pruning_method)
-        pu.set_pruning_ratios(pruning_ratio)
-        pruned_model = pu.homogeneous_prune(model_cp)
-
-        models_utils.load_params(pruned_model, pruned_file_name, device)
-        
-        model_accuracy = models_utils.evaluate(pruned_model, testloader, device)
-        model_params = sum(p.numel() for p in pruned_model.parameters())
-        model_macs = torchprofile.profile_macs(pruned_model, dummy_input)
-        print(model_accuracy, model_params, model_macs)
-
 
     #TODO: pruning with non-unified pruning ratio + refining
     #TODO: iterative pruning + refining
