@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from typing import Union
 import os
 import logging
+from datetime import datetime
 
 
 class LogHandler():
@@ -22,7 +23,7 @@ class LogHandler():
     def getLogger(self) -> logging.Logger:
         if not os.path.exists(self.log_direction):
             os.makedirs(self.log_direction)
-        log_file_name = f"{self.log_direction}/log-{self.run_mode}-{self.model_name}-{self.dataset_name}.txt"
+        log_file_name = f"{self.log_direction}/log-{self.run_mode}-{self.model_name}-{self.dataset_name}-{datetime.now().strftime('%Y-%m-%d %H:%M')}.txt"
         logging.basicConfig(
             filename=log_file_name,
             filemode='w',
@@ -30,7 +31,7 @@ class LogHandler():
             format='%(asctime)s - %(levelname)s : %(message)s',
         )
         logger = logging.getLogger()
-        logger.info(f"{self.run_mode}")
+        logger.info(f"run-mode: {self.run_mode}")
         return logger
     
 

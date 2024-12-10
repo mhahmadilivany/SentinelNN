@@ -23,19 +23,19 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--dataset", type=str, choices=["cifar10", "cifar100", "imagenet"], required=True)
     parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--is-pruning", type=bool, default=False)
-    parser.add_argument("--is-pruned", type=bool, default=False)
+    parser.add_argument("--is-pruning", action='store_true')
+    parser.add_argument("--is-pruned", action='store_true')
     parser.add_argument("--pruning-method", type=str, default="hm")
-    parser.add_argument("--pruning-ratio", type=float, default=0.0)
-    parser.add_argument("--pruned-checkpoint", type=str, default="./")
-    parser.add_argument("--is-hardening", type=bool, default=False)
-    parser.add_argument("--is-hardened", type=bool, default=False)
-    parser.add_argument("--hardening-ratio", type=float, default=0.0)
-    parser.add_argument("--hardened-checkpoint", type=str, default="./")
-    parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience"], default="")
+    parser.add_argument("--pruning-ratio", type=float, default=None)
+    parser.add_argument("--pruned-checkpoint", type=str, default=None)
+    parser.add_argument("--is-hardening", action='store_true')
+    parser.add_argument("--is-hardened", action='store_true')
+    parser.add_argument("--hardening-ratio", type=float, default=None)
+    parser.add_argument("--hardened-checkpoint", type=str, default=None)
+    parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience"], default=None)
 
 
-    # setting up the values
+    # setting up the arguments values
     args = parser.parse_args()
     model_name = args.model
     dataset_name = args.dataset
@@ -51,11 +51,19 @@ if __name__ == "__main__":
     hardened_checkpoint = args.hardened_checkpoint
     importance_command = args.importance 
 
+    #is_hardening and is_pruning should not be True at a same time
+    assert not (is_hardening and is_pruning) == True
+
     # create log file
     run_mode = "test"
-    run_mode += " ".join([part for part, condition in [("_pruning", is_pruning), ("_hardening", is_hardening)] if condition])
+    run_mode += "".join([part for part, condition in [("_pruning", is_pruning), ("_hardening", is_hardening)] if condition])
     setup = handlers.LogHandler(run_mode, model_name, dataset_name)   
     logger = setup.getLogger()
+    setup_logger_info = ""
+    setup_logger_info += "".join(f"{i}: {args.__dict__[i]}, " for i in args.__dict__ if \
+                                    (type(args.__dict__[i]) is bool and args.__dict__[i] is True) or \
+                                    (type(args.__dict__[i]) is not bool and args.__dict__[i] is not None))
+    logger.info(f"args: {setup_logger_info}")
 
     # set the device
     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
@@ -66,12 +74,16 @@ if __name__ == "__main__":
     model = models_utils.load_model(model_name, dataset_name, device)
 
     if is_pruned:
+        assert pruning_ratio is not None
+        assert pruned_checkpoint is not None
         pu = utils.prune_utils(model, pruning_method, classes_count, pruning_method)
         pu.set_pruning_ratios(pruning_ratio)
         model = pu.homogeneous_prune(model)
         models_utils.load_params(model, pruned_checkpoint, device)
 
     if is_hardened:
+        assert hardening_ratio is not None
+        assert hardened_checkpoint is not None
         hr = utils.hardening_utils(hardening_ratio)
         model = hr.conv_replacement(model)
         models_utils.load_params(model, hardened_checkpoint, device)
@@ -88,10 +100,14 @@ if __name__ == "__main__":
         runModeHandler.execute(run_mode, model, testloader, device, dummy_input, logger)
     
     elif run_mode == "test_pruning":
+        assert importance_command is not None
+        assert pruning_ratio is not None
         runModeHandler.execute(run_mode, model, trainloader, testloader, classes_count, dummy_input, 
                                pruning_method, device, pruning_ratio, importance_command, logger)
     
     elif run_mode == "test_hardening":
+        assert importance_command is not None
+        assert hardening_ratio is not None
         runModeHandler.execute(run_mode, model, trainloader, testloader, dummy_input, classes_count, 
                                pruning_method, hardening_ratio, importance_command, device, logger)
     
