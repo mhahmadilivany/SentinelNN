@@ -11,7 +11,7 @@ from typing import Union
 import logging
 import handlers
 
-def test(model: nn.Module, 
+def test_func(model: nn.Module, 
          testloader: DataLoader, 
          device: Union[torch.device, str], 
          dummy_input: torch.tensor, 
@@ -38,7 +38,7 @@ def pruning_func(model: nn.Module,
                  importance_command: str, 
                  logger: logging.Logger) -> None:
 
-    model_accuracy, model_params, model_macs = test(model, testloader, device, dummy_input, logger)
+    model_accuracy, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
     
     handler = handlers.AnalysisHandler(logger)
         
@@ -93,7 +93,7 @@ def hardening_func(model: nn.Module,
     handler.register("vul-gain", imp.vulnerability_gain)
     handler.register("salience", imp.Salience)
 
-    _, model_params, model_macs = test(model, testloader, device, dummy_input, logger)
+    _, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
 
     model_cp = copy.deepcopy(model)
     pu = utils.prune_utils(model_cp, trainloader, classes_count, pruning_method, device)
@@ -102,13 +102,16 @@ def hardening_func(model: nn.Module,
     logger.info("channels are sorted")
     
     hr = utils.hardening_utils(hardening_ratio)
-    hardened_model = hr.conv_replacement(sorted_model)  #replace all Conv2d with HardenedConv2d
+    hardened_model = hr.relu_replacement(sorted_model)    #default: ranger. TODO: fitact, ft-clipact, proact!
+    print(hardened_model)
+    hardened_model = hr.conv_replacement(hardened_model)      #replace all Conv2d with HardenedConv2d
+    
+
     log_dir = logger.handlers[0].baseFilename.split("log")[0]
     torch.save(hardened_model.state_dict(), f'{log_dir}/../hardened_model-{hardening_ratio}.pth')
     logger.info("model is hardened and saved")
 
-    hardened_accuracy, hardened_params, hardened_macs = test(hardened_model, testloader, device, dummy_input, logger)
+    hardened_accuracy, hardened_params, hardened_macs = test_func(hardened_model, testloader, device, dummy_input, logger)    
     
-    logger.info(f"model test top-1 accuracy: {hardened_accuracy}%")
     logger.info(f"MACs overhead: {hardened_params / model_params}")
     logger.info(f"Params overhead: {hardened_macs / model_macs}")

@@ -28,3 +28,15 @@ class HardenedConv2d(nn.Conv2d):
         new_out_activation[:, self.duplicated_channels:]  = out_activation[:, 2*self.duplicated_channels:].detach()
 
         return new_out_activation
+    
+
+class RangerReLU(nn.ReLU):
+    def __init__(self, *args, **kwargs):
+        super(RangerReLU, self).__init__(*args, **kwargs)
+        self.clipping_threshold = 6
+
+    def forward(self,
+                input_activation: torch.tensor) -> torch.tensor:
+        out_activation = super(RangerReLU, self).forward(input_activation)
+        out_activation[out_activation > self.clipping_threshold] = 0
+        return out_activation

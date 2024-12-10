@@ -92,7 +92,7 @@ if __name__ == "__main__":
     dummy_input = dummy_input.to(device)
 
     runModeHandler = handlers.RunModeHandler(logger)
-    runModeHandler.register("test", run_mode_utils.test)
+    runModeHandler.register("test", run_mode_utils.test_func)
     runModeHandler.register("test_pruning", run_mode_utils.pruning_func)
     runModeHandler.register("test_hardening", run_mode_utils.hardening_func)
 

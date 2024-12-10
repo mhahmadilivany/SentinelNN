@@ -243,3 +243,21 @@ class hardening_utils():
         return layer
 
 
+    def relu_replacement(self, model):
+        for name, layer in model.named_children():
+            if list(layer.children()) == []:
+                if isinstance(layer, nn.ReLU):
+                    hardened_relu = hardening.RangerReLU(
+                        inplace=layer.inplace
+                    )
+                    hardened_relu = self.hardening_relu(hardened_relu)
+                    setattr(model, name, hardened_relu)
+            else:
+                self.relu_replacement(layer)
+        
+        return model
+    
+    def hardening_relu(self, layer):
+        layer.clipping_threshold = 2
+        return layer
+
