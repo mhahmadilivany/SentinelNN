@@ -3,13 +3,14 @@ import torch.nn as nn
 import models_utils
 import torchprofile
 import importance_analysis as imp
-import copy
+#import copy
 import utils
 import pruning
 from torch.utils.data import DataLoader
 from typing import Union
 import logging
 import handlers
+import clipping
 
 def test_func(model: nn.Module, 
          testloader: DataLoader, 
@@ -47,11 +48,11 @@ def pruning_func(model: nn.Module,
     handler.register("vul-gain", imp.vulnerability_gain)
     handler.register("salience", imp.Salience)
 
-    model_cp = copy.deepcopy(model)
-    pu = utils.prune_utils(model_cp, trainloader, classes_count, pruning_method, device)
+    #model_cp = copy.deepcopy(model)
+    pu = utils.prune_utils(model, trainloader, classes_count, pruning_method, device)
     pu.set_pruning_ratios(pruning_ratio)
 
-    sorted_model = pu.channel_sorting(model_cp, handler, importance_command)
+    sorted_model = pu.channel_sorting(model, handler, importance_command)
     logger.info("channels are sorted")
 
     pruned_model = pu.homogeneous_prune(sorted_model)
@@ -83,35 +84,42 @@ def hardening_func(model: nn.Module,
                    pruning_method: str,
                    hardening_ratio: float,
                    importance_command: str,
+                   clipping_command: str,
                    device: Union[torch.device, str],
                    logger: logging.Logger) -> None:
     
-    handler = handlers.AnalysisHandler(logger)
-        
-    #registering commands for importance analysis 
-    handler.register("l1-norm", imp.L1_norm)
-    handler.register("vul-gain", imp.vulnerability_gain)
-    handler.register("salience", imp.Salience)
+    # Creating handler for ReLU clipping 
+    # and registering commands for it
+    clippingHandler = handlers.ClippingHandler(logger)
+    clippingHandler.register("ranger", clipping.Ranger_thresholds)
+    
+    # Creating handler for importance analysis 
+    # and registering commands for it
+    analysisHandler = handlers.AnalysisHandler(logger)
+    analysisHandler.register("l1-norm", imp.L1_norm)
+    analysisHandler.register("vul-gain", imp.vulnerability_gain)
+    analysisHandler.register("salience", imp.Salience)
 
     _, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
 
-    model_cp = copy.deepcopy(model)
-    pu = utils.prune_utils(model_cp, trainloader, classes_count, pruning_method, device)
+    #model_cp = copy.deepcopy(model)
+    pu = utils.prune_utils(model, trainloader, classes_count, pruning_method, device)
 
-    sorted_model = pu.channel_sorting(model_cp, handler, importance_command)
+    sorted_model = pu.channel_sorting(model, analysisHandler, importance_command)
     logger.info("channels are sorted")
     
-    hr = utils.hardening_utils(hardening_ratio)
-    hardened_model = hr.relu_replacement(sorted_model)    #default: ranger. TODO: fitact, ft-clipact, proact!
-    print(hardened_model)
-    hardened_model = hr.conv_replacement(hardened_model)      #replace all Conv2d with HardenedConv2d
+    hr = utils.hardening_utils(hardening_ratio, clipping_command)
+    hr.thresholds_extraction(sorted_model, clippingHandler, clipping_command, trainloader, device, logger)
+    hardened_model = hr.relu_replacement(sorted_model)          #default: ranger. TODO: fitact, ft-clipact, proact!
+    hardened_model = hr.conv_replacement(hardened_model)        #replace all Conv2d with HardenedConv2d
+    logger.info(f"hardened model: {hardened_model}")
     
 
     log_dir = logger.handlers[0].baseFilename.split("log")[0]
     torch.save(hardened_model.state_dict(), f'{log_dir}/../hardened_model-{hardening_ratio}.pth')
     logger.info("model is hardened and saved")
 
-    hardened_accuracy, hardened_params, hardened_macs = test_func(hardened_model, testloader, device, dummy_input, logger)    
-    
+    _, hardened_params, hardened_macs = test_func(hardened_model, testloader, device, dummy_input, logger)    
+
     logger.info(f"MACs overhead: {hardened_params / model_params}")
     logger.info(f"Params overhead: {hardened_macs / model_macs}")

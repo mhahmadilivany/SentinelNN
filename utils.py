@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import pruning
-from typing import Callable, Dict, Any
+from typing import Dict, Any
 from torch.utils.data import DataLoader
 from typing import Union
 import hardening
@@ -183,10 +183,17 @@ class prune_utils():
     
 
 class hardening_utils():
-    def __init__(self, hardening_ratio: float) -> None:
+    def __init__(self, 
+                 #model: nn.Module,
+                 hardening_ratio: float,
+                 #handler: handlers.ClippingHandler,
+                 clipping_command: str="ranger") -> None:
         self.hardening_ratio = hardening_ratio
+        self.clipping = clipping_command
+        self.relu_thresholds = {}
 
-    def conv_replacement(self, model):
+ 
+    def conv_replacement(self, model: nn.Module):
         for name, layer in model.named_children():
             if list(layer.children()) == []:
                 if isinstance(layer, nn.Conv2d):
@@ -214,9 +221,10 @@ class hardening_utils():
             
         return model
 
+    
     # duplicating the weights' output channels based on hardening ratio
     # the model is already sorted, so the first hardening_ratio% should be replicated
-    def hardening_conv(self, layer):
+    def hardening_conv(self, layer: nn.Conv2d):
         duplication_count = int(layer.out_channels * self.hardening_ratio) 
         duplication_count = 1 if duplication_count == 0 else duplication_count
         layer.duplicated_channels = duplication_count
@@ -239,25 +247,44 @@ class hardening_utils():
 
             layer.weight = nn.Parameter(new_weight)
             layer.bias = nn.Parameter(new_bias)
-        
+
         return layer
 
 
-    def relu_replacement(self, model):
+    def thresholds_extraction(self, 
+                              model: nn.Module,
+                              handler: handlers.ClippingHandler,
+                              clipping_command: str,
+                              dataloader: DataLoader,
+                              device: Union[torch.device, str],
+                              logger: logging.Logger) -> None:
+        self.relu_thresholds = {}
+        if clipping_command == "ranger":
+            self.relu_thresholds = handler.execute(clipping_command, model, dataloader, device, logger)
+
+        print(self.relu_thresholds)
+
+
+    def relu_replacement(self, model: nn.Module):
         for name, layer in model.named_children():
             if list(layer.children()) == []:
                 if isinstance(layer, nn.ReLU):
                     hardened_relu = hardening.RangerReLU(
                         inplace=layer.inplace
                     )
-                    hardened_relu = self.hardening_relu(hardened_relu)
+                    hardened_relu = self.hardening_relu(hardened_relu, self.relu_thresholds[name].item())
+                    
+                    # Replace the module in the model
                     setattr(model, name, hardened_relu)
+
             else:
                 self.relu_replacement(layer)
         
         return model
     
-    def hardening_relu(self, layer):
-        layer.clipping_threshold = 2
-        return layer
+
+    def hardening_relu(self, relu: nn.ReLU, threshold: float):
+        hardened_relu = hardening.RangerReLU(inplace=relu.inplace)
+        hardened_relu.clipping_threshold = threshold
+        return hardened_relu
 

@@ -1,8 +1,0 @@
-2024-12-10 12:54:00,100 - INFO : run-mode: test_hardening
-2024-12-10 12:54:00,101 - INFO : args: model: vgg11_bn, dataset: cifar10, batch_size: 1000, pruning_method: hm, is_hardening: True, hardening_ratio: 0.3, importance: l1-norm, 
-2024-12-10 12:54:09,063 - INFO : Executing 'test_hardening'
-2024-12-10 12:54:43,862 - INFO : model test top-1 accuracy: 92.12999725341797%
-2024-12-10 12:54:43,863 - INFO : total number of MACs: 153445376
-2024-12-10 12:54:43,863 - INFO : total number of parameters: 9756426
-2024-12-10 12:54:43,878 - INFO : Executing 'l1-norm'
-2024-12-10 12:54:44,161 - INFO : channels are sorted

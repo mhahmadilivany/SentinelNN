@@ -12,7 +12,9 @@ class L1_norm():
         self.L1_norm_executor(args[0])
         return self.ind_dict
         
-    def L1_norm_executor(self, model, name='', ) -> None:
+    def L1_norm_executor(self, 
+                         model: nn.Module, 
+                         name: str = '') -> None:
         for name1, layer in model.named_children():
             if list(layer.children()) == []:
                 if isinstance(layer, nn.Conv2d):

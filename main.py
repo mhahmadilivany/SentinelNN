@@ -1,19 +1,11 @@
 import torch
-import time
-import sys
-import getopt
 import argparse
-import os
 import dataset_utils
 import models_utils
-import torchprofile
 import utils
-import copy
-import torch.nn as nn
-import pruning
-import importance_analysis as imp
 import run_mode_utils
 import handlers
+import clipping
 
 
 
@@ -33,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--hardening-ratio", type=float, default=None)
     parser.add_argument("--hardened-checkpoint", type=str, default=None)
     parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience"], default=None)
+    parser.add_argument("--clipping", type=str, choices=["ranger"], default=None)
 
 
     # setting up the arguments values
@@ -50,6 +43,7 @@ if __name__ == "__main__":
     hardening_ratio = args.hardening_ratio
     hardened_checkpoint = args.hardened_checkpoint
     importance_command = args.importance 
+    clipping_command = args.clipping
 
     #is_hardening and is_pruning should not be True at a same time
     assert not (is_hardening and is_pruning) == True
@@ -84,7 +78,14 @@ if __name__ == "__main__":
     if is_hardened:
         assert hardening_ratio is not None
         assert hardened_checkpoint is not None
-        hr = utils.hardening_utils(hardening_ratio)
+        assert clipping_command is not None
+
+        clippingHandler = handlers.ClippingHandler(logger)
+        clippingHandler.register("ranger", clipping.Ranger_thresholds)
+
+        hr = utils.hardening_utils(hardening_ratio, clipping_command)
+        hr.thresholds_extraction(model, clippingHandler, clipping_command, trainloader, device, logger)
+        hardened_model = hr.relu_replacement(model)
         model = hr.conv_replacement(model)
         models_utils.load_params(model, hardened_checkpoint, device)
 
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         assert importance_command is not None
         assert hardening_ratio is not None
         runModeHandler.execute(run_mode, model, trainloader, testloader, dummy_input, classes_count, 
-                               pruning_method, hardening_ratio, importance_command, device, logger)
+                               pruning_method, hardening_ratio, importance_command, clipping_command, device, logger)
     
 
     #TODO: pruning with non-unified pruning ratio + refining

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from typing import Callable, Dict, Any
 from torch.utils.data import DataLoader
-from typing import Union
 import os
 import logging
 from datetime import datetime
@@ -80,3 +79,25 @@ class RunModeHandler():
             self.logger.error(f"Unknown run-mode: {run_mode}. Available run-modes: {list(self.run_modes.keys())}")
             raise ValueError(f"Unknown run-mode: {run_mode}. Available run-modes: {list(self.run_modes.keys())}")
 
+
+class ClippingHandler():
+    def __init__(self, 
+                 logger: logging.Logger) -> None:
+        self.logger = logger
+        self.clipping_method: Dict[str, Callable] = {}
+    
+    def register(self,
+                 clipping_method: str,
+                 func: Callable) -> None:
+        self.clipping_method[clipping_method] = func
+
+    def execute(self,
+                clipping_method: str, 
+                *args, **kwargs):
+        if clipping_method in self.clipping_method:
+            self.logger.info(f"Executing '{clipping_method}'")
+            func = self.clipping_method[clipping_method]  #(*args, **kwargs)
+            return func(*args, **kwargs)
+        else:
+            self.logger.error(f"Unknown run-mode: {clipping_method}. Available run-modes: {list(self.clipping_method.keys())}")
+            raise ValueError(f"Unknown run-mode: {clipping_method}. Available run-modes: {list(self.clipping_method.keys())}")

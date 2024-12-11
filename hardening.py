@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 class HardenedConv2d(nn.Conv2d):
     def __init__(self, *args, **kwargs):
@@ -27,8 +26,12 @@ class HardenedConv2d(nn.Conv2d):
         new_out_activation[:, :self.duplicated_channels] = corrected_results.detach()
         new_out_activation[:, self.duplicated_channels:]  = out_activation[:, 2*self.duplicated_channels:].detach()
 
-        return new_out_activation
-    
+        return new_out_activation    
+
+    def __repr__(self):
+        base_repr = super().__repr__()
+        return f"{base_repr[:-1]}, duplicated_channels={self.duplicated_channels})"
+
 
 class RangerReLU(nn.ReLU):
     def __init__(self, *args, **kwargs):
@@ -40,3 +43,7 @@ class RangerReLU(nn.ReLU):
         out_activation = super(RangerReLU, self).forward(input_activation)
         out_activation[out_activation > self.clipping_threshold] = 0
         return out_activation
+    
+    def __repr__(self):
+        base_repr = super().__repr__()
+        return f"{base_repr[:-1]}, threshold={self.clipping_threshold})"
