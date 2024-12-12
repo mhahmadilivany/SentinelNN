@@ -4,10 +4,8 @@ source code is reused and modified from: https://github.com/hamidmousavi0/reliab
 
 import torch
 import torch.nn as nn
-from typing import Dict, Any
+from typing import Dict, Union, Any
 from torch.utils.data import DataLoader
-from typing import Union
-#import os
 import logging
 
 activations = {}

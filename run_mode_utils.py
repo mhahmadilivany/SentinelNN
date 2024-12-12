@@ -1,16 +1,17 @@
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 import models_utils
 import torchprofile
 import importance_analysis as imp
-#import copy
+import copy
 import utils
 import pruning
-from torch.utils.data import DataLoader
 from typing import Union
 import logging
 import handlers
 import clipping
+import fault_simulation
 
 def test_func(model: nn.Module, 
          testloader: DataLoader, 
@@ -123,3 +124,45 @@ def hardening_func(model: nn.Module,
 
     logger.info(f"MACs overhead: {hardened_params / model_params}")
     logger.info(f"Params overhead: {hardened_macs / model_macs}")
+
+
+
+def weights_FI_simulation(model: nn.Module, 
+                          dataloader: DataLoader, 
+                          repetition_count: int, 
+                          BER: float, 
+                          classes_count: int, 
+                          device: Union[torch.device, str],
+                          logger: logging.Logger):
+
+    with torch.no_grad():
+        golden_predicted, golden_accuracy = fault_simulation.golden_model_evaluation(model, dataloader, device)
+
+        model_copy = copy.deepcopy(model)
+        faulty_accuracy_total = 0
+        DUE_total = 0
+        SDC_critical_total = 0
+        SDC_non_critical_total = 0
+
+        #repeat FI campaign for fault_count times
+        faulty_params_count_total = 0
+        fault_counter = fault_simulation.fault_counter()
+        for _ in range(repetition_count):
+            model_copy = fault_simulation.weights_FI(model_copy, BER, device, fault_counter)
+            faulty_params_count_total += fault_counter.fault_count
+            
+            faulty_accuracy, DUE, SDC_critical, SDC_non_critical = fault_simulation.faulty_model_evaluation(model_copy, dataloader, classes_count, golden_predicted, device)
+            faulty_accuracy_total += faulty_accuracy
+            DUE_total += DUE
+            SDC_critical_total += SDC_critical
+            SDC_non_critical_total += SDC_non_critical
+
+            del model_copy
+            model_copy = copy.deepcopy(model)
+    
+    logger.info(f"average number of faults: {faulty_params_count_total / repetition_count}")
+    logger.info(f"golden accuracy: {golden_accuracy * 100}%")
+    logger.info(f"weight FI, average accuracy: {faulty_accuracy_total * 100 / (repetition_count)}%")
+    logger.info(f"average DUE: {DUE_total * 100 / repetition_count}%")
+    logger.info(f"average critical SDC: {(SDC_critical_total) * 100 / repetition_count}%")
+    logger.info(f"average non-critical SDC: {SDC_non_critical_total * 100 / repetition_count}")

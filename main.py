@@ -26,6 +26,9 @@ if __name__ == "__main__":
     parser.add_argument("--hardened-checkpoint", type=str, default=None)
     parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience"], default=None)
     parser.add_argument("--clipping", type=str, choices=["ranger"], default=None)
+    parser.add_argument("--is-FI", action="store_true")
+    parser.add_argument("--BER", type=float, default=None)
+    parser.add_argument("--repeat", type=int, default=None)
 
 
     # setting up the arguments values
@@ -44,13 +47,17 @@ if __name__ == "__main__":
     hardened_checkpoint = args.hardened_checkpoint
     importance_command = args.importance 
     clipping_command = args.clipping
+    is_FI = args.is_FI
+    BER = args.BER
+    repetition_count = args.repeat
+
 
     #is_hardening and is_pruning should not be True at a same time
     assert not (is_hardening and is_pruning) == True
 
     # create log file
     run_mode = "test"
-    run_mode += "".join([part for part, condition in [("_pruning", is_pruning), ("_hardening", is_hardening)] if condition])
+    run_mode += "".join([part for part, condition in [("_pruning", is_pruning), ("_hardening", is_hardening), ("_FI", is_FI)] if condition])
     setup = handlers.LogHandler(run_mode, model_name, dataset_name)   
     logger = setup.getLogger()
     setup_logger_info = ""
@@ -96,6 +103,7 @@ if __name__ == "__main__":
     runModeHandler.register("test", run_mode_utils.test_func)
     runModeHandler.register("test_pruning", run_mode_utils.pruning_func)
     runModeHandler.register("test_hardening", run_mode_utils.hardening_func)
+    runModeHandler.register("test_FI", run_mode_utils.weights_FI_simulation)
 
     if run_mode == "test":
         runModeHandler.execute(run_mode, model, testloader, device, dummy_input, logger)
@@ -112,6 +120,8 @@ if __name__ == "__main__":
         runModeHandler.execute(run_mode, model, trainloader, testloader, dummy_input, classes_count, 
                                pruning_method, hardening_ratio, importance_command, clipping_command, device, logger)
     
+    elif run_mode == "test_FI":
+       runModeHandler.execute(run_mode, model, testloader, repetition_count, BER, classes_count, device, logger)
 
     #TODO: pruning with non-unified pruning ratio + refining
     #TODO: iterative pruning + refining

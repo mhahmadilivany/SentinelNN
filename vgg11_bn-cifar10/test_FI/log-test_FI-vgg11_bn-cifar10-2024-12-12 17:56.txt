@@ -1,0 +1,3 @@
+2024-12-12 17:56:51,123 - INFO : run-mode: test_FI
+2024-12-12 17:56:51,123 - INFO : args: model: vgg11_bn, dataset: cifar10, batch_size: 1000, pruning_method: hm, is_FI: True, BER: 1e-05, repeat: 2, 
+2024-12-12 17:56:59,894 - INFO : Executing 'test_FI'
