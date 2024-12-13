@@ -184,9 +184,7 @@ class prune_utils():
 
 class hardening_utils():
     def __init__(self, 
-                 #model: nn.Module,
                  hardening_ratio: float,
-                 #handler: handlers.ClippingHandler,
                  clipping_command: str="ranger") -> None:
         self.hardening_ratio = hardening_ratio
         self.clipping = clipping_command
@@ -261,8 +259,6 @@ class hardening_utils():
         self.relu_thresholds = {}
         if clipping_command == "ranger":
             self.relu_thresholds = handler.execute(clipping_command, model, dataloader, device, logger)
-
-        print(self.relu_thresholds)
 
 
     def relu_replacement(self, model: nn.Module):

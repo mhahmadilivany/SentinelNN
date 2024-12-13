@@ -18,10 +18,11 @@ def test_func(model: nn.Module,
          device: Union[torch.device, str], 
          dummy_input: torch.tensor, 
          logger: logging.Logger) -> Union[float, int, int]:
-    
-    net_accuracy = models_utils.evaluate(model, testloader, device=device)
-    total_params = sum(p.numel() for p in model.parameters())
-    total_macs = torchprofile.profile_macs(model, dummy_input)
+    model.eval()
+    with torch.no_grad():
+        net_accuracy = models_utils.evaluate(model, testloader, device=device)
+        total_params = sum(p.numel() for p in model.parameters())
+        total_macs = torchprofile.profile_macs(model, dummy_input)
     logger.info(f"model test top-1 accuracy: {net_accuracy}%")
     logger.info(f"total number of MACs: {total_macs}")
     logger.info(f"total number of parameters: {total_params}")
@@ -65,8 +66,9 @@ def pruning_func(model: nn.Module,
 
     #fine tuning the pruned model and saves the best accuracy
     finetune_epochs = 10
-    finetune_model = pruning.fine_tune(pruned_model, trainloader, testloader, finetune_epochs, device, logger, str(pruning_ratio))
-    models_utils.load_params(finetune_model, f'./../pruned_model-{pruning_ratio}.pth', device)       #loads the model which achieved best accuracy
+    finetune_model = pruning.fine_tune(pruned_model, trainloader, testloader, finetune_epochs, device, logger, pruning_ratio)
+    log_dir = logger.handlers[0].baseFilename.split("log")[0]
+    models_utils.load_params(finetune_model, f'{log_dir}/../pruned_model-{pruning_ratio}.pth', device)       #loads the model which achieved best accuracy
     finetune_accuracy = models_utils.evaluate(finetune_model, testloader, device=device)
 
     logger.info(f"fine tuned pruned model test top-1 accuracy: {finetune_accuracy}%")

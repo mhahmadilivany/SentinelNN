@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
 
     dummy_input = dummy_input.to(device)
+    model = model.to(device)
 
     runModeHandler = handlers.RunModeHandler(logger)
     runModeHandler.register("test", run_mode_utils.test_func)
@@ -121,6 +122,8 @@ if __name__ == "__main__":
                                pruning_method, hardening_ratio, importance_command, clipping_command, device, logger)
     
     elif run_mode == "test_FI":
+       assert BER is not None
+       assert repetition_count is not None
        runModeHandler.execute(run_mode, model, testloader, repetition_count, BER, classes_count, device, logger)
 
     #TODO: pruning with non-unified pruning ratio + refining

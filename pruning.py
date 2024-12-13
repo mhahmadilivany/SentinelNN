@@ -45,7 +45,7 @@ def fine_tune(model: nn.Module,
               eopchs: int,
               device: Union[torch.device, str],
               logger: logging.Logger,
-              pruning_vals: str) -> nn.Module:
+              pruning_ratio: float) -> nn.Module:
     
     logger.info("fine-tuning the pruned model")
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
@@ -63,9 +63,9 @@ def fine_tune(model: nn.Module,
             best_accuracy = accuracy
             best_epoch = epoch
             
-            torch.save(model.state_dict(), f'{log_dir}/../pruned_model-{pruning_vals}.pth')
+            torch.save(model.state_dict(), f'{log_dir}/../pruned_model-{pruning_ratio}.pth')
         logger.info(f"epoch {epoch}, accuracy: {accuracy}%")
         
-    logger.info("model saved with the best achieved accuracy, i.e., epoch {best_epoch}, accuracy: {best_accuracy}%")
+    logger.info(f"model saved with the best achieved accuracy, i.e., epoch {best_epoch}, accuracy: {best_accuracy}%")
 
     return model

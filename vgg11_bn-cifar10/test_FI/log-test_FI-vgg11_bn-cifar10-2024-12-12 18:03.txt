@@ -1,9 +1,0 @@
-2024-12-12 18:03:45,223 - INFO : run-mode: test_FI
-2024-12-12 18:03:45,223 - INFO : args: model: vgg11_bn, dataset: cifar10, batch_size: 1000, pruning_method: hm, is_FI: True, BER: 1e-05, repeat: 2, 
-2024-12-12 18:03:52,629 - INFO : Executing 'test_FI'
-2024-12-12 18:04:14,882 - INFO : average number of faults: 4666.5
-2024-12-12 18:04:14,883 - INFO : golden accuracy: 92.79999542236328%
-2024-12-12 18:04:14,883 - INFO : weight FI, average accuracy: 10.300000190734863%
-2024-12-12 18:04:14,883 - INFO : average DUE: 0.0%
-2024-12-12 18:04:14,884 - INFO : average critical SDC: 90.2%
-2024-12-12 18:04:14,886 - INFO : average non-critical SDC: 9.8
