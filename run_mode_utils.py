@@ -66,9 +66,9 @@ def pruning_func(model: nn.Module,
 
     #fine tuning the pruned model and saves the best accuracy
     finetune_epochs = 10
-    finetune_model = pruning.fine_tune(pruned_model, trainloader, testloader, finetune_epochs, device, logger, pruning_ratio)
+    finetune_model = pruning.fine_tune(pruned_model, trainloader, testloader, finetune_epochs, device, logger, pruning_ratio, importance_command)
     log_dir = logger.handlers[0].baseFilename.split("log")[0]
-    models_utils.load_params(finetune_model, f'{log_dir}/../pruned_model-{pruning_ratio}.pth', device)       #loads the model which achieved best accuracy
+    models_utils.load_params(finetune_model, f'{log_dir}/../pruned_model-{importance_command}-{pruning_ratio}.pth', device)       #loads the model which achieved best accuracy
     finetune_accuracy = models_utils.evaluate(finetune_model, testloader, device=device)
 
     logger.info(f"fine tuned pruned model test top-1 accuracy: {finetune_accuracy}%")
@@ -119,7 +119,7 @@ def hardening_func(model: nn.Module,
     
 
     log_dir = logger.handlers[0].baseFilename.split("log")[0]
-    torch.save(hardened_model.state_dict(), f'{log_dir}/../hardened_model-{hardening_ratio}.pth')
+    torch.save(hardened_model.state_dict(), f'{log_dir}/../hardened_model-{importance_command}-{hardening_ratio}.pth')
     logger.info("model is hardened and saved")
 
     _, hardened_params, hardened_macs = test_func(hardened_model, testloader, device, dummy_input, logger)    
