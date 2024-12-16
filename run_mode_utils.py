@@ -56,6 +56,9 @@ def pruning_func(model: nn.Module,
 
     sorted_model = pu.channel_sorting(model, handler, importance_command)
     logger.info("channels are sorted")
+    model_accuracy, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
+    print("sorted accuracy: ", model_accuracy)
+    print(kjf)
 
     pruned_model = pu.homogeneous_prune(sorted_model)
     logger.info("model is pruned")

@@ -75,10 +75,15 @@ class prune_utils():
                 elif isinstance(layer, nn.Linear):
                     self.fc_layers.append(layer)
 
+            elif isinstance(layer, nn.Module) and hasattr(layer, 'conv1') and hasattr(layer, 'conv2'):  #BasicBlocks in ResNet
+                name_ = name + name1
+                self.conv_layers.append([name_, layer])     #self.basic_block can be considered
+
             else:
                 name += name1 + "."
                 self._get_separated_layers(layer, name)
         
+    
     def _get_separated_layers_reversed(self, 
                               model: nn.Module,
                               name: str = '') -> None:
@@ -97,12 +102,14 @@ class prune_utils():
                 name += name1 + "."
                 self._get_separated_layers_reversed(layer, name)
 
+    
     def _reset_params(self):
         self.conv_count = 0
         self.conv_layers = []
         self.bn_layers = []
         self.fc_layers = []
 
+    
     '''
     iterates over the model,
     applies homogeneous pruning to conv layers,
@@ -118,11 +125,20 @@ class prune_utils():
 
         with torch.no_grad():
             for i in range(len(self.conv_layers) - 1):
+                conv_name = self.conv_layers[i][0]
                 conv_layer = self.conv_layers[i][1]
+                next_conv_name = self.conv_layers[i+1][0]
+                next_conv = self.conv_layers[i+1][1]
+                print(conv_name, next_conv_name)
+                #if "downsample" in conv_name or "downsample" in next_conv_name:   #for resnet
+                #    print("continue")
+                #    continue        #to be solved
 
                 new_out_channel = conv_layer.out_channels - int(conv_layer.out_channels * self.conv_pruning_ratio)
+                #print(conv_name, int(conv_layer.out_channels * self.conv_pruning_ratio))
                 conv_layer.weight.set_(conv_layer.weight.detach()[:new_out_channel])
-                conv_layer.bias.set_(conv_layer.bias.detach()[:new_out_channel])
+                if conv_layer.bias is not None:
+                    conv_layer.bias.set_(conv_layer.bias.detach()[:new_out_channel])
                 conv_layer.out_channels = new_out_channel
 
                 bn_layer = self.bn_layers[i]
@@ -132,11 +148,11 @@ class prune_utils():
                 bn_layer.running_var.set_(bn_layer.running_var.detach()[:new_out_channel])
                 bn_layer.num_features = new_out_channel
 
-                next_conv = self.conv_layers[i+1][1]
                 next_conv.weight.set_(next_conv.weight.detach()[:, :new_out_channel])
                 next_conv.in_channels = new_out_channel
             
         return model
+    
     
     '''
     sorts channels in conv layers based on an importance metric
@@ -163,22 +179,62 @@ class prune_utils():
             self.bn_layers.reverse()
 
         assert len(self.conv_layers) != 0
-        assert len(self.conv_layers) == len(self.bn_layers)
         
         with torch.no_grad():
             for i in range(len(self.conv_layers) - 1):
                 conv_name = self.conv_layers[i][0]
                 conv_layer = self.conv_layers[i][1]
-                sort_index_conv = sort_index_conv_dict[conv_name]
-                
-                conv_layer = pruning.out_channel_sorting(conv_layer, sort_index_conv)
-
-                bn_layer = self.bn_layers[i]
-                bn_layer = pruning.batchnorm_sorting(bn_layer, sort_index_conv)
-                
                 next_conv = self.conv_layers[i+1][1]
-                conv_layer = pruning.in_channel_sorting(next_conv, sort_index_conv)
+                
+                if "BasicBlock" in type(conv_layer).__name__:                #for resnet
+                    layer_name = conv_name + ".conv1"
+                    sort_index_conv = sort_index_conv_dict[layer_name]
+                    pruning.out_channel_sorting(conv_layer.conv1, sort_index_conv)
+                    pruning.batchnorm_sorting(conv_layer.bn1, sort_index_conv)
 
+                    pruning.in_channel_sorting(conv_layer.conv2, sort_index_conv)                    
+
+                    if conv_layer.downsample:
+                        layer_name = conv_name + ".conv2"
+                        sort_index_conv = sort_index_conv_dict[layer_name]
+                        pruning.out_channel_sorting(conv_layer.conv2, sort_index_conv)
+                        pruning.batchnorm_sorting(conv_layer.bn2, sort_index_conv)
+                        
+                        for _, sub_layer in conv_layer.downsample.named_children():
+                            if isinstance(sub_layer, nn.Conv2d):
+                                pruning.in_channel_sorting(sub_layer, last_sort_index_conv)
+                                pruning.out_channel_sorting(sub_layer, sort_index_conv)
+                            elif isinstance(sub_layer, nn.BatchNorm2d):
+                                pruning.batchnorm_sorting(sub_layer, sort_index_conv)
+
+                        if "BasicBlock" not in type(next_conv).__name__:
+                            pruning.in_channel_sorting(next_conv, sort_index_conv)
+                        else:
+                            pruning.in_channel_sorting(next_conv.conv1, sort_index_conv)
+
+                        last_sort_index_conv = sort_index_conv
+
+                    else:
+                        pruning.out_channel_sorting(conv_layer.conv2, last_sort_index_conv)
+                        pruning.batchnorm_sorting(conv_layer.bn2, last_sort_index_conv)
+
+                        if "BasicBlock" not in type(next_conv).__name__:
+                            pruning.in_channel_sorting(next_conv, last_sort_index_conv)
+                        else:
+                            pruning.in_channel_sorting(next_conv.conv1, last_sort_index_conv)
+
+                else:
+                    sort_index_conv = sort_index_conv_dict[conv_name]
+                    pruning.out_channel_sorting(conv_layer, sort_index_conv)
+                    pruning.batchnorm_sorting(self.bn_layers[i], sort_index_conv)
+                    
+                    if "BasicBlock" not in type(next_conv).__name__:
+                        pruning.in_channel_sorting(next_conv, sort_index_conv)
+                    else:
+                        pruning.in_channel_sorting(next_conv.conv1, sort_index_conv)
+                    
+                    last_sort_index_conv = sort_index_conv
+                    
         return model
     
 

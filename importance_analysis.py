@@ -21,6 +21,23 @@ class L1_norm():
                     sort_index = self.channel_L1_norm(layer.weight)
                     name_ = name + name1
                     self.ind_dict[name_] = sort_index
+            
+            elif isinstance(layer, nn.Module) and hasattr(layer, 'conv1') and hasattr(layer, 'conv2'):  #BasicBlocks in ResNet
+                name_ = name + name1 + ".conv1"
+                sort_index = self.channel_L1_norm(layer.conv1.weight)
+                self.ind_dict[name_] = sort_index
+
+                name_ = name + name1 + ".conv2"
+                sort_index = self.channel_L1_norm(layer.conv2.weight)
+                self.ind_dict[name_] = sort_index
+
+                if layer.downsample:
+                    for name_tmp, sub_layer in layer.downsample.named_children():
+                        if isinstance(sub_layer, nn.Conv2d):
+                            name_ = name + name1 + ".downsample." + name_tmp
+                            sort_index = self.channel_L1_norm(sub_layer.weight)
+                            self.ind_dict[name_] = sort_index
+
             else:
                 name += name1 + "."
                 self.L1_norm_executor(layer, name)

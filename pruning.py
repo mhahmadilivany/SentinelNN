@@ -9,34 +9,27 @@ import logging
 
 
 def out_channel_sorting(conv_layer: nn.Module, 
-                    sort_index: torch.tensor) -> nn.Module:
+                    sort_index: torch.tensor) -> None:
     conv_layer.weight.copy_(
         torch.index_select(conv_layer.weight.detach(), 0, sort_index))
 
-    return conv_layer
+    #return conv_layer
 
 def in_channel_sorting(conv_layer: nn.Module, 
-                    sort_index: torch.tensor) -> nn.Module:
+                    sort_index: torch.tensor) -> None:
     conv_layer.weight.copy_(
         torch.index_select(conv_layer.weight.detach(), 1, sort_index))
 
-    return conv_layer
+    #return conv_layer
 
 def batchnorm_sorting(bn_layer: nn.Module,
-                      sort_index: torch.tensor) -> nn.Module:
+                      sort_index: torch.tensor) -> None:
     for tensor_name in ['weight', 'bias', 'running_mean', 'running_var']:
         tensor_to_apply = getattr(bn_layer, tensor_name)
         tensor_to_apply.copy_(
             torch.index_select(tensor_to_apply.detach(), 0, sort_index))
     
-    return bn_layer
-
-def fc_sorting(fc_layer: nn.Module,
-               sort_index: torch.tensor) -> nn.Module:
-    fc_layer.weight.copy_(
-        torch.index_select(fc_layer.weight.detach(), 0, sort_index))
-    
-    return fc_layer
+    #return bn_layer
 
 
 def fine_tune(model: nn.Module,
