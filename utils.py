@@ -82,7 +82,7 @@ class prune_utils():
             else:
                 name += name1 + "."
                 self._get_separated_layers(layer, name)
-        
+
     
     def _get_separated_layers_reversed(self, 
                               model: nn.Module,
@@ -110,6 +110,35 @@ class prune_utils():
         self.fc_layers = []
 
     
+    def _conv_prune(self, 
+                    conv_layer: nn.Conv2d, 
+                    next_conv: Union[nn.Conv2d, nn.Linear]) -> None:
+        new_out_channel = conv_layer.out_channels - int(conv_layer.out_channels * self.conv_pruning_ratio)
+                        
+        conv_layer.weight.set_(conv_layer.weight.detach()[:new_out_channel])
+        if conv_layer.bias is not None:
+            conv_layer.bias.set_(conv_layer.bias.detach()[:new_out_channel])
+        conv_layer.out_channels = new_out_channel
+        
+        if next_conv is not None:
+            if isinstance(next_conv, nn.Conv2d):
+                next_conv.weight.set_(next_conv.weight.detach()[:, :new_out_channel])
+                next_conv.in_channels = new_out_channel
+            elif isinstance(next_conv, nn.Linear):
+                next_conv.weight.set_(next_conv.weight.detach()[:, :new_out_channel])
+                next_conv.in_features = new_out_channel
+                            
+
+    def _bn_prune(self, bn_layer: nn.BatchNorm2d) -> None:
+        new_out_channel = bn_layer.num_features - int(bn_layer.num_features * self.conv_pruning_ratio)
+        
+        bn_layer.weight.set_(bn_layer.weight.detach()[:new_out_channel])
+        bn_layer.bias.set_(bn_layer.bias.detach()[:new_out_channel])
+        bn_layer.running_mean.set_(bn_layer.running_mean.detach()[:new_out_channel])
+        bn_layer.running_var.set_(bn_layer.running_var.detach()[:new_out_channel])
+        bn_layer.num_features = new_out_channel
+
+
     '''
     iterates over the model,
     applies homogeneous pruning to conv layers,
@@ -121,36 +150,44 @@ class prune_utils():
         self._reset_params()
         self._get_separated_layers(model)
         assert len(self.conv_layers) != 0
-        assert len(self.conv_layers) == len(self.bn_layers)
+        assert len(self.fc_layers) != 0
 
         with torch.no_grad():
-            for i in range(len(self.conv_layers) - 1):
-                conv_name = self.conv_layers[i][0]
+            for i in range(len(self.conv_layers)):      # - 1):
                 conv_layer = self.conv_layers[i][1]
-                next_conv_name = self.conv_layers[i+1][0]
-                next_conv = self.conv_layers[i+1][1]
-                print(conv_name, next_conv_name)
-                #if "downsample" in conv_name or "downsample" in next_conv_name:   #for resnet
-                #    print("continue")
-                #    continue        #to be solved
+                if i + 1 < len(self.conv_layers):
+                    next_conv = self.conv_layers[i+1][1]
+                else:
+                    next_conv = self.fc_layers[0]
+                
+                if "BasicBlock" in type(conv_layer).__name__:
+                    self._conv_prune(conv_layer.conv1, conv_layer.conv2)
+                    self._bn_prune(conv_layer.bn1)
 
-                new_out_channel = conv_layer.out_channels - int(conv_layer.out_channels * self.conv_pruning_ratio)
-                #print(conv_name, int(conv_layer.out_channels * self.conv_pruning_ratio))
-                conv_layer.weight.set_(conv_layer.weight.detach()[:new_out_channel])
-                if conv_layer.bias is not None:
-                    conv_layer.bias.set_(conv_layer.bias.detach()[:new_out_channel])
-                conv_layer.out_channels = new_out_channel
+                    if "BasicBlock" in type(next_conv).__name__:
+                        self._conv_prune(conv_layer.conv2, next_conv.conv1)
+                        self._bn_prune(conv_layer.bn2)
+                    else:
+                        self._conv_prune(conv_layer.conv2, next_conv)
+                        self._bn_prune(conv_layer.bn2)
+                        
+                    
+                    if conv_layer.downsample:
+                        for _, sub_layer in conv_layer.downsample.named_children():
+                            if isinstance(sub_layer, nn.Conv2d):
+                                sub_layer.weight.set_(sub_layer.weight.detach()[:, :conv_layer.conv1.in_channels])
+                                sub_layer.in_channels = conv_layer.conv1.in_channels
+                                self._conv_prune(sub_layer, None)
+                            elif isinstance(sub_layer, nn.BatchNorm2d):
+                                self._bn_prune(sub_layer)
 
-                bn_layer = self.bn_layers[i]
-                bn_layer.weight.set_(bn_layer.weight.detach()[:new_out_channel])
-                bn_layer.bias.set_(bn_layer.bias.detach()[:new_out_channel])
-                bn_layer.running_mean.set_(bn_layer.running_mean.detach()[:new_out_channel])
-                bn_layer.running_var.set_(bn_layer.running_var.detach()[:new_out_channel])
-                bn_layer.num_features = new_out_channel
-
-                next_conv.weight.set_(next_conv.weight.detach()[:, :new_out_channel])
-                next_conv.in_channels = new_out_channel
-            
+                else:
+                    if "BasicBlock" in type(next_conv).__name__:
+                        self._conv_prune(conv_layer, next_conv.conv1)
+                        self._bn_prune(self.bn_layers[i])
+                    else:
+                        self._conv_prune(conv_layer, next_conv)
+                        self._bn_prune(self.bn_layers[i])
         return model
     
     
@@ -177,15 +214,20 @@ class prune_utils():
             self._get_separated_layers_reversed(model)
             self.conv_layers.reverse()
             self.bn_layers.reverse()
+            self.fc_layers.reverse()
 
         assert len(self.conv_layers) != 0
+        assert len(self.fc_layers) != 0
         
         with torch.no_grad():
-            for i in range(len(self.conv_layers) - 1):
+            for i in range(len(self.conv_layers)):  # - 1):
                 conv_name = self.conv_layers[i][0]
                 conv_layer = self.conv_layers[i][1]
-                next_conv = self.conv_layers[i+1][1]
-                
+                if i + 1 < len(self.conv_layers):
+                    next_conv = self.conv_layers[i+1][1]
+                else:
+                    next_conv = self.fc_layers[0]
+
                 if "BasicBlock" in type(conv_layer).__name__:                #for resnet
                     layer_name = conv_name + ".conv1"
                     sort_index_conv = sort_index_conv_dict[layer_name]
@@ -207,10 +249,10 @@ class prune_utils():
                             elif isinstance(sub_layer, nn.BatchNorm2d):
                                 pruning.batchnorm_sorting(sub_layer, sort_index_conv)
 
-                        if "BasicBlock" not in type(next_conv).__name__:
-                            pruning.in_channel_sorting(next_conv, sort_index_conv)
-                        else:
+                        if "BasicBlock" in type(next_conv).__name__:
                             pruning.in_channel_sorting(next_conv.conv1, sort_index_conv)
+                        else:
+                            pruning.in_channel_sorting(next_conv, sort_index_conv)
 
                         last_sort_index_conv = sort_index_conv
 
@@ -218,23 +260,23 @@ class prune_utils():
                         pruning.out_channel_sorting(conv_layer.conv2, last_sort_index_conv)
                         pruning.batchnorm_sorting(conv_layer.bn2, last_sort_index_conv)
 
-                        if "BasicBlock" not in type(next_conv).__name__:
-                            pruning.in_channel_sorting(next_conv, last_sort_index_conv)
-                        else:
+                        if "BasicBlock" in type(next_conv).__name__:
                             pruning.in_channel_sorting(next_conv.conv1, last_sort_index_conv)
+                        else:
+                            pruning.in_channel_sorting(next_conv, last_sort_index_conv)
 
                 else:
                     sort_index_conv = sort_index_conv_dict[conv_name]
                     pruning.out_channel_sorting(conv_layer, sort_index_conv)
                     pruning.batchnorm_sorting(self.bn_layers[i], sort_index_conv)
                     
-                    if "BasicBlock" not in type(next_conv).__name__:
-                        pruning.in_channel_sorting(next_conv, sort_index_conv)
-                    else:
+                    if "BasicBlock" in type(next_conv).__name__:
                         pruning.in_channel_sorting(next_conv.conv1, sort_index_conv)
+                    else:
+                        pruning.in_channel_sorting(next_conv, sort_index_conv)
                     
                     last_sort_index_conv = sort_index_conv
-                    
+            
         return model
     
 
@@ -248,30 +290,31 @@ class hardening_utils():
 
  
     def conv_replacement(self, model: nn.Module):
-        for name, layer in model.named_children():
-            if list(layer.children()) == []:
-                if isinstance(layer, nn.Conv2d):
-                    hardened_layer = hardening.HardenedConv2d(
-                        in_channels=layer.in_channels,
-                        out_channels=layer.out_channels,
-                        kernel_size=layer.kernel_size,
-                        stride=layer.stride,
-                        padding=layer.padding,
-                        dilation=layer.dilation,
-                        groups=layer.groups,
-                        bias=(layer.bias is not None),
-                        padding_mode=layer.padding_mode,
-                    )
-                    hardened_layer.weight.data = layer.weight.data.clone()
-                    if layer.bias is not None:
-                        hardened_layer.bias.data = layer.bias.data.clone()
-                    hardened_layer = self.hardening_conv(hardened_layer)
-                    
-                    # Replace the module in the model
-                    setattr(model, name, hardened_layer)
+        if self.hardening_ratio != 0:
+            for name, layer in model.named_children():
+                if list(layer.children()) == []:
+                    if isinstance(layer, nn.Conv2d):
+                        hardened_layer = hardening.HardenedConv2d(
+                            in_channels=layer.in_channels,
+                            out_channels=layer.out_channels,
+                            kernel_size=layer.kernel_size,
+                            stride=layer.stride,
+                            padding=layer.padding,
+                            dilation=layer.dilation,
+                            groups=layer.groups,
+                            bias=(layer.bias is not None),
+                            padding_mode=layer.padding_mode,
+                        )
+                        hardened_layer.weight.data = layer.weight.data.clone()
+                        if layer.bias is not None:
+                            hardened_layer.bias.data = layer.bias.data.clone()
+                        hardened_layer = self.hardening_conv(hardened_layer)
+                        
+                        # Replace the module in the model
+                        setattr(model, name, hardened_layer)
 
-            else:
-                self.conv_replacement(layer)
+                else:
+                    self.conv_replacement(layer)
             
         return model
 

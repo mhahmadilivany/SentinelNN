@@ -22,7 +22,7 @@ class LogHandler():
     def getLogger(self) -> logging.Logger:
         if not os.path.exists(self.log_direction):
             os.makedirs(self.log_direction)
-        log_file_name = f"{self.log_direction}/log-{self.run_mode}-{self.model_name}-{self.dataset_name}-{datetime.now().strftime('%Y-%m-%d %H:%M')}.txt"
+        log_file_name = f"{self.log_direction}/log-{self.run_mode}-{self.model_name}-{self.dataset_name}-{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.txt"
         logging.basicConfig(
             filename=log_file_name,
             filemode='w',

@@ -58,14 +58,16 @@ def pruning_func(model: nn.Module,
     logger.info("channels are sorted")
     model_accuracy, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
     print("sorted accuracy: ", model_accuracy)
-    print(kjf)
 
     pruned_model = pu.homogeneous_prune(sorted_model)
+    print(pruned_model)
     logger.info("model is pruned")
 
     pruned_accuracy = models_utils.evaluate(pruned_model, testloader, device=device)
     pruned_params, pruned_macs = models_utils.size_profile(pruned_model, dummy_input)
     logger.info(f"pruned model test top-1 accuracy: {pruned_accuracy}%")
+    logger.info(f"pruned model number of MACs: {pruned_macs}") 
+    logger.info(f"pruned model number of parameters: {pruned_params}")
 
     #fine tuning the pruned model and saves the best accuracy
     finetune_epochs = 10
@@ -75,8 +77,6 @@ def pruning_func(model: nn.Module,
     finetune_accuracy = models_utils.evaluate(finetune_model, testloader, device=device)
 
     logger.info(f"fine tuned pruned model test top-1 accuracy: {finetune_accuracy}%")
-    logger.info(f"pruned model number of MACs: {pruned_macs}") 
-    logger.info(f"pruned model number of parameters: {pruned_params}")
     logger.info(f"final accuracy loss: {model_accuracy - finetune_accuracy}%")
     logger.info(f"MAC improvement: {pruned_params / model_params}")
     logger.info(f"Params improvement: {pruned_macs / model_macs}")
