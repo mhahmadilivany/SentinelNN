@@ -337,13 +337,16 @@ class hardening_utils():
             for i in range(duplication_count):
                 new_weight[i] = layer.weight[i]
                 new_weight[duplication_count + i] = layer.weight[i]
-                new_bias[i] = layer.bias[i]
-                new_bias[duplication_count + i] = layer.bias[i]
+                if layer.bias is not None:
+                    new_bias[i] = layer.bias[i]
+                    new_bias[duplication_count + i] = layer.bias[i]
             new_weight[2*duplication_count:] = layer.weight[duplication_count:]
-            new_bias[2*duplication_count:] = layer.bias[duplication_count:]
+            if layer.bias is not None:
+                new_bias[2*duplication_count:] = layer.bias[duplication_count:]
 
             layer.weight = nn.Parameter(new_weight)
-            layer.bias = nn.Parameter(new_bias)
+            if layer.bias is not None:
+                layer.bias = nn.Parameter(new_bias)
 
         return layer
 
@@ -360,20 +363,24 @@ class hardening_utils():
             self.relu_thresholds = handler.execute(clipping_command, model, dataloader, device, logger)
 
 
-    def relu_replacement(self, model: nn.Module):
-        for name, layer in model.named_children():
+    def relu_replacement(self, 
+                         model: nn.Module,
+                         name: str = '') -> nn.Module:
+        for name1, layer in model.named_children():
             if list(layer.children()) == []:
                 if isinstance(layer, nn.ReLU):
                     hardened_relu = hardening.RangerReLU(
                         inplace=layer.inplace
                     )
-                    hardened_relu = self.hardening_relu(hardened_relu, self.relu_thresholds[name].item())
+                    name_ = name + name1
+                    hardened_relu = self.hardening_relu(hardened_relu, self.relu_thresholds[name_].item())
                     
                     # Replace the module in the model
-                    setattr(model, name, hardened_relu)
+                    setattr(model, name1, hardened_relu)
 
             else:
-                self.relu_replacement(layer)
+                name += name1 + "."
+                self.relu_replacement(layer, name)
         
         return model
     

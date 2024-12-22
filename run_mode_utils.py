@@ -57,11 +57,9 @@ def pruning_func(model: nn.Module,
     sorted_model = pu.channel_sorting(model, handler, importance_command)
     logger.info("channels are sorted")
     model_accuracy, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
-    print("sorted accuracy: ", model_accuracy)
 
     pruned_model = pu.homogeneous_prune(sorted_model)
-    print(pruned_model)
-    logger.info("model is pruned")
+    logger.info(f"model is pruned: {pruned_model}")
 
     pruned_accuracy = models_utils.evaluate(pruned_model, testloader, device=device)
     pruned_params, pruned_macs = models_utils.size_profile(pruned_model, dummy_input)
@@ -108,7 +106,6 @@ def hardening_func(model: nn.Module,
 
     _, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
 
-    #model_cp = copy.deepcopy(model)
     pu = utils.prune_utils(model, trainloader, classes_count, pruning_method, device)
 
     sorted_model = pu.channel_sorting(model, analysisHandler, importance_command)
@@ -118,8 +115,7 @@ def hardening_func(model: nn.Module,
     hr.thresholds_extraction(sorted_model, clippingHandler, clipping_command, trainloader, device, logger)
     hardened_model = hr.relu_replacement(sorted_model)          #default: ranger. TODO: fitact, ft-clipact, proact!
     hardened_model = hr.conv_replacement(hardened_model)        #replace all Conv2d with HardenedConv2d
-    logger.info(f"hardened model: {hardened_model}")
-    
+    logger.info(f"model is hardened: {hardened_model}")
 
     log_dir = logger.handlers[0].baseFilename.split("log")[0]
     torch.save(hardened_model.state_dict(), f'{log_dir}/../hardened_model-{importance_command}-{hardening_ratio}.pth')

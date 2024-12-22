@@ -13,14 +13,15 @@ def out_channel_sorting(conv_layer: nn.Module,
     conv_layer.weight.copy_(
         torch.index_select(conv_layer.weight.detach(), 0, sort_index))
 
-    #return conv_layer
+    #conv_layer.bias.copy_(
+    #    torch.index_select(conv_layer.bias.detach(), 0, sort_index))
+
 
 def in_channel_sorting(conv_layer: nn.Module, 
                     sort_index: torch.tensor) -> None:
     conv_layer.weight.copy_(
         torch.index_select(conv_layer.weight.detach(), 1, sort_index))
 
-    #return conv_layer
 
 def batchnorm_sorting(bn_layer: nn.Module,
                       sort_index: torch.tensor) -> None:
@@ -29,8 +30,6 @@ def batchnorm_sorting(bn_layer: nn.Module,
         tensor_to_apply.copy_(
             torch.index_select(tensor_to_apply.detach(), 0, sort_index))
     
-    #return bn_layer
-
 
 def fine_tune(model: nn.Module,
               trainloader: DataLoader,

@@ -16,13 +16,16 @@ def get_activation(name):
     return hook
 
 
-def relu_hooks(model:nn.Module):
-    for name, layer in model.named_children():
+def relu_hooks(model: nn.Module,
+               name: str=''):
+    for name1, layer in model.named_children():
         if list(layer.children()) == []:
             if isinstance(layer, nn.ReLU):
-                layer.register_forward_hook(get_activation(name)) 
+                name_ = name + name1
+                layer.register_forward_hook(get_activation(name_)) 
         else:
-            relu_hooks(layer)
+            name += name1 + "."
+            relu_hooks(layer, name)
              
 def Ranger_thresholds(model:nn.Module, 
                       dataloader: DataLoader, 
@@ -30,20 +33,25 @@ def Ranger_thresholds(model:nn.Module,
                       logger: logging.Logger) -> torch.tensor:
     model.eval()
     thresholds = {}
+    thresholds_tmp = {}
     relu_hooks(model)
+    init_flag = 1
+
     for data, _ in dataloader:
         data = data.to(device)
         _ = model(data)
-        
         for key, val in activations.items():
-            thresholds[key] = val
-        
-        total_max = 0
+            thresholds_tmp[key] = torch.max(val) 
+            if init_flag:
+                thresholds[key] = torch.tensor(0) 
+
         for key, val in activations.items():
-            curr_max = torch.max(activations[key])
+            total_max = thresholds[key]
+            curr_max = thresholds_tmp[key]
             total_max = curr_max if curr_max > total_max else total_max
             thresholds[key] = total_max 
         
-        #break 
+        init_flag = 0
+
     logger.info("thresholds are derived based on Ranger")
     return thresholds

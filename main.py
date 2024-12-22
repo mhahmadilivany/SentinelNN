@@ -118,6 +118,7 @@ if __name__ == "__main__":
     elif run_mode == "test_hardening":
         assert importance_command is not None
         assert hardening_ratio is not None
+        assert clipping_command is not None
         runModeHandler.execute(run_mode, model, trainloader, testloader, dummy_input, classes_count, 
                                pruning_method, hardening_ratio, importance_command, clipping_command, device, logger)
     
