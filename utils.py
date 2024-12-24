@@ -77,7 +77,7 @@ class prune_utils():
 
             elif isinstance(layer, nn.Module) and hasattr(layer, 'conv1') and hasattr(layer, 'conv2'):  #BasicBlocks in ResNet
                 name_ = name + name1
-                self.conv_layers.append([name_, layer])     #self.basic_block can be considered
+                self.conv_layers.append([name_, layer])
 
             else:
                 name += name1 + "."
@@ -97,6 +97,10 @@ class prune_utils():
                     self.bn_layers.append(layer)
                 elif isinstance(layer, nn.Linear):
                     self.fc_layers.append(layer)
+
+            elif isinstance(layer, nn.Module) and hasattr(layer, 'conv1') and hasattr(layer, 'conv2'):  #BasicBlocks in ResNet
+                name_ = name + name1
+                self.conv_layers.append([name_, layer])
 
             else:
                 name += name1 + "."

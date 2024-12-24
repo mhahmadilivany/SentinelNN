@@ -77,6 +77,23 @@ class vulnerability_gain():
                     sort_index = self.channels_vulnerability(self.model, layer)
                     name_ = name + name1
                     self.ind_dict[name_] = sort_index
+            
+            elif isinstance(layer, nn.Module) and hasattr(layer, 'conv1') and hasattr(layer, 'conv2'):  #BasicBlocks in ResNet
+                sort_index = self.channels_vulnerability(self.model, layer.conv1)
+                name_ = name + name1 + ".conv1"
+                self.ind_dict[name_] = sort_index
+
+                sort_index = self.channels_vulnerability(self.model, layer.conv2)
+                name_ = name + name1 + ".conv2"
+                self.ind_dict[name_] = sort_index
+
+                if layer.downsample:
+                    for name_tmp, sub_layer in layer.downsample.named_children():
+                        if isinstance(sub_layer, nn.Conv2d):
+                            sort_index = self.channels_vulnerability(self.model, sub_layer)
+                            name_ = name + name1 + ".downsample." + name_tmp
+                            self.ind_dict[name_] = sort_index
+            
             else:
                 name += name1 + "."
                 self.gain_norm_executor(layer, name)
@@ -165,10 +182,23 @@ class Salience():
 
                 elif isinstance(layer, nn.Conv2d):
                     name_ = name + name1
-                    #self.ind_dict[name_] = self.channels_salience(layer.weight)
                     self.ind_dict[name_] = torch.argsort(self.salience, descending=True)
                     _ = self.channels_salience(layer.weight)
 
+            elif isinstance(layer, nn.Module) and hasattr(layer, 'conv1') and hasattr(layer, 'conv2'):  #BasicBlocks in ResNet
+                if layer.downsample:
+                    for name_tmp, sub_layer in layer.downsample.named_children():
+                        if isinstance(sub_layer, nn.Conv2d):
+                            name_ = name + name1 + ".downsample." + name_tmp
+                            self.ind_dict[name_] = torch.argsort(self.salience, descending=True)
+                
+                name_ = name + name1 + ".conv2"
+                self.ind_dict[name_] = torch.argsort(self.salience, descending=True)
+                _ = self.channels_salience(layer.conv2.weight)
+
+                name_ = name + name1 + ".conv1"
+                self.ind_dict[name_] = torch.argsort(self.salience, descending=True)
+                _ = self.channels_salience(layer.conv1.weight)
 
             else:
                 name += name1 + "."
@@ -177,9 +207,6 @@ class Salience():
     def neurons_salience(self,
                           weight: torch.tensor) -> torch.tensor:
         
-        #print(self.salience.unsqueeze(1).size())
-        #print(weight.detach().size())
-
         self.salience = torch.sum(self.salience.unsqueeze(1) * torch.abs(weight.detach()), dim=0)
         sort_index = torch.argsort(self.salience, descending=True)
 
@@ -188,17 +215,11 @@ class Salience():
     def channels_salience(self, 
                         weight: torch.tensor) -> torch.tensor:
         
-        #if len(self.salience.size()) != 4:      #when it comes back from Linear
-        #    self.salience.reshape(weight.shape[0], weight.shape[1], weight.shape[2], weight.shape[3])
-        #print(self.salience.unsqueeze(1).size())
-        #print(weight.detach().size())
-
         out_channels = weight.shape[0]
         new_salience = torch.zeros(weight.shape[1], device=self.device)
-
+        
         for i_c in range(out_channels):
             channel_weight = torch.abs(weight.detach()[i_c])
-            #print(self.salience[i_c].size(), channel_weight.size())
             new_salience += torch.sum(torch.sum(torch.sum(self.salience[i_c] * channel_weight, dim=2), dim=1), dim=0)
             
         self.salience = new_salience

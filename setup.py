@@ -9,3 +9,5 @@ setup(
     author_email="mohammad.ahmadilivani@taltech.ee",
     python_requires=">=3.8",
 )
+
+#typing_extensions-4.12.2
