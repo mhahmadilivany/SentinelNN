@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--is-hardened", action='store_true', help="set the flag, if you want to load a hardened CNN")
     parser.add_argument("--hardening-ratio", type=float, default=None, help="a float value for hardening conv layers")
     parser.add_argument("--hardened-checkpoint", type=str, default=None, help="directory to the hardened model checkpoint")
-    parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience"], default=None, help="method for importance analysis either in pruning or hardening")
+    parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience", "deepvigor"], default=None, help="method for importance analysis either in pruning or hardening")
     parser.add_argument("--clipping", type=str, choices=["ranger"], default=None, help="method for clipping ReLU in hardening")
     parser.add_argument("--is-FI", action="store_true", help="set the flag, for performing fault simulation in weights")
     parser.add_argument("--BER", type=float, default=None, help="a float value for Bit Error Rate")
@@ -58,8 +58,8 @@ if __name__ == "__main__":
     # create log file
     run_mode = "test"
     run_mode += "".join([part for part, condition in [("_pruning", is_pruning), ("_hardening", is_hardening), ("_FI", is_FI)] if condition])
-    setup = handlers.LogHandler(run_mode, model_name, dataset_name)   
-    logger = setup.getLogger()
+    setup_logger = handlers.LogHandler(run_mode, model_name, dataset_name)   
+    logger = setup_logger.getLogger()
     setup_logger_info = ""
     setup_logger_info += "".join(f"{i}: {args.__dict__[i]}, " for i in args.__dict__ if \
                                     (type(args.__dict__[i]) is bool and args.__dict__[i] is True) or \

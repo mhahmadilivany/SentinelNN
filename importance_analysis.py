@@ -2,7 +2,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from DeepVigor_analysis import DeepVigor_analysis
 
 class L1_norm():
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -226,3 +226,77 @@ class Salience():
         sort_index = torch.argsort(self.salience, descending=True)
 
         return sort_index
+    
+
+class DeepVigor():
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.model = args[0]        #nn.Module
+        self.inputs = args[1]       #torch.tensor
+        self.out_classes = args[2]  #int
+        self.device = args[3]       #Union[torch.device, str]
+        self.logger = args[4]       #logging.Logger
+        
+        self.layers_output_count_dict = {}
+        self.input_activations_dict = {}
+        self.weights_dict = {}
+        self.ind_dict = {}
+        #self.__get_neurons_layers(self.model)
+        #self.LVF_dict = {}
+
+    def __call__(self, *args, **kwds):
+        self.DeepVigor_executor(self.model)
+        return self.ind_dict
+
+    def __get_neurons_count(self, name):
+        def hook(model, input, output):
+            self.layers_output_count_dict[name] = output[0].numel()
+            self.input_activations_dict[name] = input[0]
+            self.weights_dict[name] = model.weight
+        return hook
+
+    """def __get_neurons_layers(self, model, name=''):
+        for name1, layer in model.named_children():
+            if list(layer.children()) == []:
+                if isinstance(layer, nn.Conv2d):
+                    name_ = name + name1
+                    layer.register_forward_hook(self.__get_neurons_count(name_))
+            else:
+                name += name1 + "."     
+                self.__get_neurons_layers(layer, name)"""
+
+    def DeepVigor_executor(self, model, layer_name=''):
+        for name1, layer in model.named_children():
+            if list(layer.children()) == []:
+                if isinstance(layer, nn.Conv2d):
+                    name = layer_name + name1
+                    handle = layer.register_forward_hook(self.__get_neurons_count(name))
+                    _ = self.model(self.inputs)
+                    handle.remove()
+
+                    deepvigor = DeepVigor_analysis(self.model, self.device)
+                    name = layer_name + name1
+                    x_pad = F.pad(self.input_activations_dict[name], (layer.padding[0], layer.padding[0], layer.padding[0], layer.padding[0]))
+                    layer_info_set = {"stride": layer.stride[0], "kernel_size": layer.kernel_size[0], "neurons_in_layer": self.layers_output_count_dict[name], 
+                                    "batch_size": self.inputs.size(0), "out_channel": layer.out_channels, 
+                                    "layer_inputs": x_pad, "layer_weights": layer.weight}
+                    
+                    # deriving channel vulnerability factors (CVF)
+                    critical_cvf = deepvigor.channels_vulnerability_factor(self.inputs, layer, layer_info_set, self.out_classes)
+                    
+                    sort_index = torch.argsort(critical_cvf, descending=True)
+                    self.ind_dict[name] = sort_index
+
+                    # saving the derived CVFs in a file
+                    log_dir = self.logger.handlers[0].baseFilename.split("log")[0]
+                    cvf_file_dir = f"{log_dir}/channels-VF-{name}.txt"
+                    cvf_file = open(cvf_file_dir, 'w')
+                    for i in range(layer.out_channels):
+                        cvf_file.write(str(critical_cvf[i].item()) + "\n")
+                    cvf_file.close()
+
+                    self.logger.info(f"Derived and saved the vulnerability factors for layer {name}")
+            
+            else:
+                layer_name += name1 + "."
+                self.DeepVigor_executor(layer, layer_name)
+

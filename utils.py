@@ -201,6 +201,7 @@ class prune_utils():
     def channel_sorting(self, 
                         model: nn.Module,
                         handler: handlers.AnalysisHandler,
+                        logger: logging.Logger,
                         command: str="l1-norm", 
                         ) -> nn.Module:
         
@@ -210,7 +211,7 @@ class prune_utils():
             self._get_separated_layers(model)
             
         elif command == "vul-gain":
-            sort_index_conv_dict = handler.execute(command,model, self.trainloader, self.classes_count, self.device)
+            sort_index_conv_dict = handler.execute(command, model, self.trainloader, self.classes_count, self.device)
             self._get_separated_layers(model)
 
         elif command == "salience":
@@ -220,11 +221,21 @@ class prune_utils():
             self.bn_layers.reverse()
             self.fc_layers.reverse()
 
+        elif command == "deepvigor":
+            for data in self.trainloader:
+                inputs = data[0].to(self.device)
+                break
+            sort_index_conv_dict = handler.execute(command, model, inputs, self.classes_count, self.device, logger)
+            self._get_separated_layers(model)
+
+        else:
+            raise Exception(f"Unexpected analysis command is given: {command}")
+        
         assert len(self.conv_layers) != 0
         assert len(self.fc_layers) != 0
         
         with torch.no_grad():
-            for i in range(len(self.conv_layers)):  # - 1):
+            for i in range(len(self.conv_layers)):
                 conv_name = self.conv_layers[i][0]
                 conv_layer = self.conv_layers[i][1]
                 if i + 1 < len(self.conv_layers):
@@ -281,6 +292,7 @@ class prune_utils():
                     
                     last_sort_index_conv = sort_index_conv
             
+        logger.info("channels are sorted")
         return model
     
 

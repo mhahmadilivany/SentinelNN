@@ -49,13 +49,14 @@ def pruning_func(model: nn.Module,
     handler.register("l1-norm", imp.L1_norm)
     handler.register("vul-gain", imp.vulnerability_gain)
     handler.register("salience", imp.Salience)
+    handler.register("deepvigor", imp.DeepVigor)
 
     #model_cp = copy.deepcopy(model)
     pu = utils.prune_utils(model, trainloader, classes_count, pruning_method, device)
     pu.set_pruning_ratios(pruning_ratio)
 
-    sorted_model = pu.channel_sorting(model, handler, importance_command)
-    logger.info("channels are sorted")
+    sorted_model = pu.channel_sorting(model, handler, logger, importance_command)
+    
     model_accuracy, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
 
     pruned_model = pu.homogeneous_prune(sorted_model)
@@ -103,13 +104,13 @@ def hardening_func(model: nn.Module,
     analysisHandler.register("l1-norm", imp.L1_norm)
     analysisHandler.register("vul-gain", imp.vulnerability_gain)
     analysisHandler.register("salience", imp.Salience)
+    analysisHandler.register("deepvigor", imp.DeepVigor)
 
     _, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
 
     pu = utils.prune_utils(model, trainloader, classes_count, pruning_method, device)
 
-    sorted_model = pu.channel_sorting(model, analysisHandler, importance_command)
-    logger.info("channels are sorted")
+    sorted_model = pu.channel_sorting(model, analysisHandler, logger, importance_command)
     
     hr = utils.hardening_utils(hardening_ratio, clipping_command)
     hr.thresholds_extraction(sorted_model, clippingHandler, clipping_command, trainloader, device, logger)
