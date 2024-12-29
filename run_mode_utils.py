@@ -7,7 +7,7 @@ import importance_analysis as imp
 import copy
 import utils
 import pruning
-from typing import Union
+from typing import Union, Dict
 import logging
 import handlers
 import clipping
@@ -128,17 +128,16 @@ def hardening_func(model: nn.Module,
     logger.info(f"Params overhead: {hardened_macs / model_macs}")
 
 
-
 def weights_FI_simulation(model: nn.Module, 
                           dataloader: DataLoader, 
                           repetition_count: int, 
                           BER: float, 
                           classes_count: int, 
                           device: Union[torch.device, str],
-                          logger: logging.Logger):
+                          logger: logging.Logger) -> None:
 
     with torch.no_grad():
-        golden_predicted, golden_accuracy = fault_simulation.golden_model_evaluation(model, dataloader, device)
+        golden_predicted, golden_accuracy = fault_simulation.model_evaluation(model, dataloader, device)
 
         model_copy = copy.deepcopy(model)
         faulty_accuracy_total = 0
@@ -168,3 +167,56 @@ def weights_FI_simulation(model: nn.Module,
     logger.info(f"average DUE: {DUE_total * 100 / repetition_count}%")
     logger.info(f"average critical SDC: {(SDC_critical_total) * 100 / repetition_count}%")
     logger.info(f"average non-critical SDC: {SDC_non_critical_total * 100 / repetition_count}")
+
+
+def channel_ranking_func(model: nn.Module,
+                         dataloader: DataLoader,
+                         command: str,
+                         classes_count: int,
+                         logger: logging.Logger,
+                         device: Union[torch.device, str]) -> None:
+    
+    handler = handlers.AnalysisHandler(logger)
+        
+    # registering commands for importance analysis 
+    handler.register("l1-norm", imp.L1_norm)
+    handler.register("vul-gain", imp.vulnerability_gain)
+    handler.register("salience", imp.Salience)
+    handler.register("deepvigor", imp.DeepVigor)
+    handler.register("channel-FI", imp.channel_FI)
+
+    if command == "l1-norm":
+        sort_index_conv_dict = handler.execute(command, model, ...)  
+        
+    elif command == "vul-gain":
+        sort_index_conv_dict = handler.execute(command, model, dataloader, classes_count, device)
+
+    elif command == "salience":
+        sort_index_conv_dict = handler.execute(command, model, classes_count, device)
+
+    elif command == "deepvigor":
+        for data in dataloader:
+            inputs = data[0].to(device)
+            break
+        sort_index_conv_dict = handler.execute(command, model, inputs, classes_count, device, logger)
+
+    elif command == "channel-FI":
+        sort_index_conv_dict = handler.execute(command, model, dataloader, device, logger)
+
+    else:
+        raise Exception(f"Unexpected analysis command is given: {command}")
+
+    assert len(sort_index_conv_dict) != 0
+    save_dict(sort_index_conv_dict, command, logger)
+    logger.info(f"channels are sorted and svaed based on {command}")
+
+
+def save_dict(sort_index_dict: Dict,
+              sorting_name: str,
+              logger: logging.Logger) -> None:
+    for key in sort_index_dict:
+        log_dir = logger.handlers[0].baseFilename.split("log")[0]
+        file = open(f"{log_dir}/channel_ranking-{sorting_name}-{key}.txt", 'w')
+        for i in sort_index_dict[key]:
+            file.write(str(i.item()) + "\n")
+        file.close()

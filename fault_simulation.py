@@ -69,10 +69,11 @@ def weights_FI(model: nn.Module,
 
     return model
 
-def golden_model_evaluation(model: nn.Module, 
+
+def model_evaluation(model: nn.Module, 
                             dataloader: DataLoader, 
                             device: Union[torch.device, str],
-                            ) -> torch.tensor:
+                            ) -> Union[torch.tensor, float]:
     model.eval()
     golden_accuracy = 0
     total_data = 0
@@ -120,3 +121,5 @@ def faulty_model_evaluation(model: nn.Module,
 
 
 
+
+    #return channels_vf

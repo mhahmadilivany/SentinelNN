@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, required=True, help="name of the CNN")
     parser.add_argument("--dataset", type=str, choices=["cifar10", "cifar100", "imagenet"], required=True, help="name of the dataset")
     parser.add_argument("--batch-size", type=int, default=128, help="an integer value for bach-size")
+    parser.add_argument("--is-ranking", action='store_true', help="set the flag, if you want to rank the channels in conv layers")
     parser.add_argument("--is-pruning", action='store_true', help="set the flag, if you want to prune the CNN")
     parser.add_argument("--is-pruned", action='store_true', help="set the flag, if you want to load a pruned CNN")
     parser.add_argument("--pruning-method", type=str, default="hm", help="pruning method, homogeneous or heterogeneous")
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--is-hardened", action='store_true', help="set the flag, if you want to load a hardened CNN")
     parser.add_argument("--hardening-ratio", type=float, default=None, help="a float value for hardening conv layers")
     parser.add_argument("--hardened-checkpoint", type=str, default=None, help="directory to the hardened model checkpoint")
-    parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience", "deepvigor"], default=None, help="method for importance analysis either in pruning or hardening")
+    parser.add_argument("--importance", type=str, choices=["l1-norm", "vul-gain", "salience", "deepvigor", "channel-FI"], default=None, help="method for importance analysis either in pruning or hardening")
     parser.add_argument("--clipping", type=str, choices=["ranger"], default=None, help="method for clipping ReLU in hardening")
     parser.add_argument("--is-FI", action="store_true", help="set the flag, for performing fault simulation in weights")
     parser.add_argument("--BER", type=float, default=None, help="a float value for Bit Error Rate")
@@ -36,6 +37,7 @@ if __name__ == "__main__":
     model_name = args.model
     dataset_name = args.dataset
     batch_size = args.batch_size
+    is_ranking = args.is_ranking
     is_pruning = args.is_pruning
     is_pruned = args.is_pruned
     pruning_method = args.pruning_method
@@ -57,7 +59,7 @@ if __name__ == "__main__":
 
     # create log file
     run_mode = "test"
-    run_mode += "".join([part for part, condition in [("_pruning", is_pruning), ("_hardening", is_hardening), ("_FI", is_FI)] if condition])
+    run_mode += "".join([part for part, condition in [("_channel_ranking", is_ranking), ("_pruning", is_pruning), ("_hardening", is_hardening), ("_FI", is_FI)] if condition])
     setup_logger = handlers.LogHandler(run_mode, model_name, dataset_name)   
     logger = setup_logger.getLogger()
     setup_logger_info = ""
@@ -105,6 +107,7 @@ if __name__ == "__main__":
     runModeHandler.register("test_pruning", run_mode_utils.pruning_func)
     runModeHandler.register("test_hardening", run_mode_utils.hardening_func)
     runModeHandler.register("test_FI", run_mode_utils.weights_FI_simulation)
+    runModeHandler.register("test_channel_ranking", run_mode_utils.channel_ranking_func)
 
     if run_mode == "test":
         runModeHandler.execute(run_mode, model, testloader, device, dummy_input, logger)
@@ -126,6 +129,10 @@ if __name__ == "__main__":
        assert BER is not None
        assert repetition_count is not None
        runModeHandler.execute(run_mode, model, testloader, repetition_count, BER, classes_count, device, logger)
+
+    elif run_mode == "test_channel_ranking":
+        assert importance_command is not None
+        runModeHandler.execute(run_mode, model, trainloader, importance_command, classes_count, logger, device)
 
     #TODO: pruning with non-unified pruning ratio + refining
     #TODO: iterative pruning + refining

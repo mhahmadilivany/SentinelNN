@@ -2,7 +2,12 @@ from typing import Any
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Dict, Any
+from torch.utils.data import DataLoader
 from DeepVigor_analysis import DeepVigor_analysis
+import fault_simulation
+import binary_converter
+import copy
 
 class L1_norm():
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -240,8 +245,6 @@ class DeepVigor():
         self.input_activations_dict = {}
         self.weights_dict = {}
         self.ind_dict = {}
-        #self.__get_neurons_layers(self.model)
-        #self.LVF_dict = {}
 
     def __call__(self, *args, **kwds):
         self.DeepVigor_executor(self.model)
@@ -253,16 +256,6 @@ class DeepVigor():
             self.input_activations_dict[name] = input[0]
             self.weights_dict[name] = model.weight
         return hook
-
-    """def __get_neurons_layers(self, model, name=''):
-        for name1, layer in model.named_children():
-            if list(layer.children()) == []:
-                if isinstance(layer, nn.Conv2d):
-                    name_ = name + name1
-                    layer.register_forward_hook(self.__get_neurons_count(name_))
-            else:
-                name += name1 + "."     
-                self.__get_neurons_layers(layer, name)"""
 
     def DeepVigor_executor(self, model, layer_name=''):
         for name1, layer in model.named_children():
@@ -300,3 +293,57 @@ class DeepVigor():
                 layer_name += name1 + "."
                 self.DeepVigor_executor(layer, layer_name)
 
+
+class channel_FI():
+    def __init__(self, *args, **kwds):
+        self.model = args[0]
+        self.dataloader = args[1]
+        self.device = args[2]
+        self.logger = args[3]
+
+        self.sort_index_dict = {}
+
+    def __call__(self, *args, **kwds):
+        self.channel_ranking_FI(self.model)
+        self.logger.info("applied FI to all channels")
+        return self.sort_index_dict
+
+    def channel_ranking_FI(self,
+                           model: nn.Module,
+                           name: str = "") -> None:
+
+        with torch.no_grad():
+            for name1, layer in model.named_children():
+                if list(layer.children()) == []:
+                    if isinstance(layer, nn.Conv2d): #or isinstance(layer, hardening.HardenedConv2d):
+                        torch.cuda.empty_cache()
+                        repetition_count = int(torch.numel(layer.weight[0]) * 32 * 0.01)   #should be FI equation
+                        for ch in range(layer.weight.size(0)):      #iterate over out_channels
+                            total_faulty_accuracy = 0
+                            for _ in range(repetition_count):
+                                weight_size = layer.weight.size()
+                                w1 = torch.randint(weight_size[1], (1,), device=self.device).item()
+                                w2 = torch.randint(weight_size[2], (1,), device=self.device).item()
+                                w3 = torch.randint(weight_size[3], (1,), device=self.device).item()
+                                random_bits = torch.randint(32, (1,), device=self.device).item()        #32-bit data
+                                layer.weight.requires_grad = False
+                                golden_weight_cp = copy.deepcopy(layer.weight[ch, w1, w2, w3])
+                                weight_bit = binary_converter.float2bit(layer.weight[ch, w1, w2, w3].unsqueeze(0), device=self.device)
+                                weight_bit[0][random_bits] = torch.logical_xor(weight_bit[0][random_bits], torch.tensor(1)).float() 
+                                layer.weight[ch, w1, w2, w3] = nn.Parameter(binary_converter.bit2float(weight_bit, device=self.device)[0])
+
+                                _, faulty_accuracy = fault_simulation.model_evaluation(model, self.dataloader, self.device)
+                                total_faulty_accuracy += faulty_accuracy
+
+                                layer.weight[ch, w1, w2, w3] = copy.deepcopy(golden_weight_cp)
+                                
+                                del golden_weight_cp
+                                del weight_bit
+
+                            layer_channels_vf = 1 - total_faulty_accuracy / repetition_count
+                            sort_index = torch.argsort(layer_channels_vf, descending=True)
+                            name_ = name + name1
+                            self.sort_index_dict[name_] = sort_index
+                else:
+                    name += name1 + '.'
+                    self.channel_ranking_FI(layer, name)
