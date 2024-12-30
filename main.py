@@ -134,6 +134,5 @@ if __name__ == "__main__":
         assert importance_command is not None
         runModeHandler.execute(run_mode, model, trainloader, importance_command, classes_count, logger, device)
 
-    #TODO: pruning with non-unified pruning ratio + refining
     #TODO: iterative pruning + refining
 

@@ -8,6 +8,7 @@ from DeepVigor_analysis import DeepVigor_analysis
 import fault_simulation
 import binary_converter
 import copy
+import run_mode_utils
 
 class L1_norm():
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -317,7 +318,10 @@ class channel_FI():
                 if list(layer.children()) == []:
                     if isinstance(layer, nn.Conv2d): #or isinstance(layer, hardening.HardenedConv2d):
                         torch.cuda.empty_cache()
-                        repetition_count = int(torch.numel(layer.weight[0]) * 32 * 0.01)   #should be FI equation
+                        channel_bits = torch.numel(layer.weight[0]) * 32
+                        repetition_count = int(channel_bits / (1 + (0.0001 * ((channel_bits - 1) / 0.96))))
+                        repetition_count = 1000 if repetition_count > 1000 else repetition_count
+
                         for ch in range(layer.weight.size(0)):      #iterate over out_channels
                             total_faulty_accuracy = 0
                             for _ in range(repetition_count):
@@ -344,6 +348,9 @@ class channel_FI():
                             sort_index = torch.argsort(layer_channels_vf, descending=True)
                             name_ = name + name1
                             self.sort_index_dict[name_] = sort_index
+                            self.logger.info(f"Channel ranking is performed using FI for layer {name_}")
+                        run_mode_utils.save_dict(self.sort_index_dict, "channel-FI-temp", self.logger)
+                        
                 else:
                     name += name1 + '.'
                     self.channel_ranking_FI(layer, name)

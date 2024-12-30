@@ -212,11 +212,11 @@ def channel_ranking_func(model: nn.Module,
 
 
 def save_dict(sort_index_dict: Dict,
-              sorting_name: str,
+              command: str,
               logger: logging.Logger) -> None:
     for key in sort_index_dict:
         log_dir = logger.handlers[0].baseFilename.split("log")[0]
-        file = open(f"{log_dir}/channel_ranking-{sorting_name}-{key}.txt", 'w')
+        file = open(f"{log_dir}/channel_ranking-{command}-{key}.txt", 'w')
         for i in sort_index_dict[key]:
             file.write(str(i.item()) + "\n")
         file.close()

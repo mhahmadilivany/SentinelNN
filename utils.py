@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 import pruning
-from typing import Dict, Any
+from typing import Union, Dict, Any
 from torch.utils.data import DataLoader
-from typing import Union
 import hardening
 import handlers
 import logging
