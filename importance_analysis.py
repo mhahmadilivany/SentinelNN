@@ -320,8 +320,9 @@ class channel_FI():
                         torch.cuda.empty_cache()
                         channel_bits = torch.numel(layer.weight[0]) * 32
                         repetition_count = int(channel_bits / (1 + (0.0001 * ((channel_bits - 1) / 0.96))))
-                        repetition_count = 1000 if repetition_count > 1000 else repetition_count
+                        repetition_count = 2000 if repetition_count > 2000 else repetition_count
 
+                        channels_vf_list = torch.zeros(layer.weight.size(0), device=self.device)
                         for ch in range(layer.weight.size(0)):      #iterate over out_channels
                             total_faulty_accuracy = 0
                             for _ in range(repetition_count):
@@ -344,13 +345,13 @@ class channel_FI():
                                 del golden_weight_cp
                                 del weight_bit
 
-                            layer_channels_vf = 1 - total_faulty_accuracy / repetition_count
-                            sort_index = torch.argsort(layer_channels_vf, descending=True)
-                            name_ = name + name1
-                            self.sort_index_dict[name_] = sort_index
-                            self.logger.info(f"Channel ranking is performed using FI for layer {name_}")
+                            channels_vf_list[ch] = 1 - total_faulty_accuracy / repetition_count
+
+                        name_ = name + name1
+                        self.sort_index_dict[name_] = torch.argsort(channels_vf_list, descending=True)
+                        self.logger.info(f"Channel ranking is performed using FI for layer {name_} with {repetition_count} repetition of FI")
                         run_mode_utils.save_dict(self.sort_index_dict, "channel-FI-temp", self.logger)
-                        
+
                 else:
                     name += name1 + '.'
                     self.channel_ranking_FI(layer, name)
