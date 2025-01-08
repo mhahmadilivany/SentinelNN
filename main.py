@@ -30,6 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("--is-FI", action="store_true", help="set the flag, for performing fault simulation in weights")
     parser.add_argument("--BER", type=float, default=None, help="a float value for Bit Error Rate")
     parser.add_argument("--repeat", type=int, default=None, help="number of fault simulation experiments")
+    parser.add_argument("--is-performance", action='store_true', help="set the flag, if you want to test theperformance of a CNN")
 
 
     # setting up the arguments values
@@ -52,6 +53,7 @@ if __name__ == "__main__":
     is_FI = args.is_FI
     BER = args.BER
     repetition_count = args.repeat
+    is_performance = args.is_performance
 
 
     #is_hardening and is_pruning should not be True at a same time
@@ -59,7 +61,12 @@ if __name__ == "__main__":
 
     # create log file
     run_mode = "test"
-    run_mode += "".join([part for part, condition in [("_channel_ranking", is_ranking), ("_pruning", is_pruning), ("_hardening", is_hardening), ("_FI", is_FI)] if condition])
+    run_mode += "".join([part for part, condition in [("_channel_ranking", is_ranking), 
+                                                      ("_pruning", is_pruning), 
+                                                      ("_hardening", is_hardening), 
+                                                      ("_FI", is_FI),
+                                                      ("_performance", is_performance)]
+                                                        if condition])
     setup_logger = handlers.LogHandler(run_mode, model_name, dataset_name)   
     logger = setup_logger.getLogger()
     setup_logger_info = ""
@@ -108,6 +115,7 @@ if __name__ == "__main__":
     runModeHandler.register("test_hardening", run_mode_utils.hardening_func)
     runModeHandler.register("test_FI", run_mode_utils.weights_FI_simulation)
     runModeHandler.register("test_channel_ranking", run_mode_utils.channel_ranking_func)
+    runModeHandler.register("test_performance", run_mode_utils.performance_func)
 
     if run_mode == "test":
         runModeHandler.execute(run_mode, model, testloader, device, dummy_input, logger)
@@ -133,6 +141,9 @@ if __name__ == "__main__":
     elif run_mode == "test_channel_ranking":
         assert importance_command is not None
         runModeHandler.execute(run_mode, model, trainloader, importance_command, classes_count, logger, device)
+
+    elif run_mode == "test_performance":
+        runModeHandler.execute(run_mode, model, dummy_input, logger)
 
     #TODO: iterative pruning + refining
 

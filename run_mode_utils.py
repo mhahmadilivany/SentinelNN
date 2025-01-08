@@ -12,6 +12,7 @@ import logging
 import handlers
 import clipping
 import fault_simulation
+import time
 
 def test_func(model: nn.Module, 
          testloader: DataLoader, 
@@ -220,3 +221,26 @@ def save_dict(sort_index_dict: Dict,
         for i in sort_index_dict[key]:
             file.write(str(i.item()) + "\n")
         file.close()
+
+
+def performance_func(model: nn.Module,
+                    dummy_input: torch.tensor,
+                    logger: logging.Logger) -> Union[float, int, int]:
+    
+
+    warmup_count = 100
+    for _ in range(warmup_count):
+        _ = model(dummy_input)
+    
+    eval_count = 10000
+
+    total_time = 0
+    for _ in range(eval_count):
+        tmp_time1 = time.time()
+        _ = model(dummy_input)
+        tmp_time2 = time.time()
+        total_time += tmp_time2 - tmp_time1
+    performance = total_time / eval_count
+
+    logger.info(f"model average performance with {eval_count} repetition: {performance * 1000} ms")
+    
