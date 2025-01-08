@@ -37,19 +37,21 @@ class DeepVigor_analysis():
 
         neurons_in_channel = features_count // out_channel_count
         fmap_width = int(math.sqrt(neurons_in_channel))
-        #print(self.device)
+        
         self.activation = torch.tensor([])
         non_crit_channels = torch.zeros(out_channel_count, device=self.device)
         last_layer_out = self.model.forward(images)
         _, detected_labels = torch.max(last_layer_out, 1)
         one_hots = torch.unsqueeze(F.one_hot(detected_labels, num_classes=out_no), 1)
         neurons_samples = torch.max(torch.tensor([int(torch.log2(torch.tensor([neurons_in_channel]))), 1])).item()
+        
+        del last_layer_out
+
         for channel in range(out_channel_count):
             errors_dist_weight_channel = torch.zeros(4 * resolution + 3, device=self.device)
             
             neurons_set = torch.tensor([])
             nrn_counter = 0
-            NVF_ch = 0
             
             while nrn_counter < neurons_samples:
                 rand_neuron = torch.randint(neurons_in_channel, (1,)).item()
@@ -68,7 +70,12 @@ class DeepVigor_analysis():
                 
                     errors_dist_weight_neuron = DeepVigor_utils.vulnerability_values_space_weight(sliced_inputs, neuron_weights, self.device)
                     errors_dist_weight_channel += errors_dist_weight_neuron
- 
+                    
+                    del errors_dist_weight_neuron
+                    del sliced_inputs
+            
+            del neurons_set
+
             #analysis for faulty weights 
             errors_dist_weight_channel = errors_dist_weight_channel / nrn_counter
             VVSS_dict_weights = DeepVigor_utils.creating_VVSS_dict(errors_dist_weight_channel, resolution, self.device)
@@ -84,18 +91,21 @@ class DeepVigor_analysis():
             loss_deepvigor = (torch.sum(torch.sigmoid(torch.unsqueeze(torch.sum(corrupted_out * one_hots, 1), 1) - corrupted_out))) / batch_size
             loss_deepvigor.backward()
 
-            channel_grad = torch.sum(torch.sum(self.activation.grad.data, 3), 2)
+            channel_grad = torch.sum(torch.sum(self.activation.grad.data, 3), 2).detach()
             channel_grad[channel_grad != 0] = 1
             grad_bool_map = torch.eq(channel_grad[:, channel], torch.zeros_like(channel_grad[:, channel], device=self.device))
+
+            del self.activation.grad
+            del loss_deepvigor
+            del corrupted_out
+            torch.cuda.empty_cache()
 
             if torch.sum(channel_grad, 0)[channel] != 0:           #there is some images misclassified by faults
                 true_classified = torch.eq(corrupted_labels, detected_labels)
                 if torch.sum(true_classified) == batch_size:
                     if VVSS_dict_weights['neg_inf'].size(0) <= 1:               #all images are misclassified by vulnerability_values < -1
-                        #analysis_counters_weights[2] += 1       #single_big_negative
                         dlt_search_l = torch.ones_like(dlt_search_l, device=self.device) * (-inf_represent)
                     else:
-                        #analysis_counters_weights[3] += 1       #multi_big_negative
                         vector_len = VVSS_dict_weights['neg_inf'].size(0)
                         iteration_count = vector_len // 2
                         index_tensor = torch.ones(batch_size, dtype=torch.int, device=self.device) * iteration_count
@@ -104,18 +114,21 @@ class DeepVigor_analysis():
                             handle = layer.register_forward_hook(self.delta_injection_channel(channel, dlt_search_l))
                             corrupted_out = self.model(images)
                             _, corrupted_labels = torch.max(corrupted_out, 1)
-                            #analysis_counters_weights[11] += 1
                             true_classified = torch.eq(corrupted_labels, detected_labels)
                             index_tensor = torch.logical_not(true_classified) * (index_tensor + 1) + true_classified * (index_tensor - 1)
                             index_tensor[index_tensor >= vector_len] = vector_len - 1
                             index_tensor[index_tensor < 0] = 0
                             handle.remove()
+
+                            del corrupted_out
+                            del corrupted_labels
+                            del true_classified
                             
                         dlt_search_l = VVSS_dict_weights['neg_inf'][index_tensor]
                         dlt_search_l[grad_bool_map == 1] = -inf_represent
+                        torch.cuda.empty_cache()
                 
                 else:       #images misclassified by vulnerability_values < 0
-                    #analysis_counters_weights[4] += 1       #mixed_negative
                     true_classified_init = torch.clone(torch.logical_not(true_classified))
                     vector_len_inf = VVSS_dict_weights['neg_inf'].size(0)
                     iteration_count_inf = vector_len_inf // 2
@@ -130,7 +143,6 @@ class DeepVigor_analysis():
                         corrupted_out = self.model(images)
                         _, corrupted_labels = torch.max(corrupted_out, 1)
                         true_classified = torch.eq(corrupted_labels, detected_labels)
-                        #analysis_counters_weights[11] += 1
                         
                         index_tensor_inf = true_classified_init * (torch.logical_not(true_classified) * (index_tensor_inf + 1) + true_classified * (index_tensor_inf - 1))
                         index_tensor_1 = torch.logical_not(true_classified_init) * (torch.logical_not(true_classified) * (index_tensor_1 + 1) + true_classified * (index_tensor_1 - 1))
@@ -139,20 +151,23 @@ class DeepVigor_analysis():
                         index_tensor_1[index_tensor_1 >= vector_len_1] = vector_len_1 - 1
                         index_tensor_1[index_tensor_1 < 0] = 0
                         handle.remove()
+                        
+                        del corrupted_out
+                        del corrupted_labels
+                        del true_classified
+
                     dlt_search_l = torch.logical_not(true_classified_init) * VVSS_dict_weights['neg_1'][index_tensor_1] + true_classified_init * VVSS_dict_weights['neg_inf'][index_tensor_inf]
                     dlt_search_l[grad_bool_map == 1] = -inf_represent
+                    torch.cuda.empty_cache()
 
             else:
                 #counter for vul < -inf
-                #analysis_counters_weights[5] += 1   #skipped_negative
                 dlt_search_l = torch.ones_like(dlt_search_l, device=self.device) * -inf_represent 
 
             #free memory
-            del self.activation.grad
-            del loss_deepvigor
             del channel_grad 
             del grad_bool_map
-            del corrupted_out
+            #del corrupted_out
             torch.cuda.empty_cache()
 
             #finding deltas in positive numbers
@@ -161,25 +176,26 @@ class DeepVigor_analysis():
             handle = layer.register_forward_hook(self.delta_injection_channel(channel, dlt_search_h))
             corrupted_out = self.model(images)
             _, corrupted_labels = torch.max(corrupted_out, 1)
-            #analysis_counters_weights[11] += 1
             handle.remove()
 
             loss_deepvigor = (torch.sum(torch.sigmoid(torch.unsqueeze(torch.sum(corrupted_out * one_hots, 1), 1) - corrupted_out))) / batch_size
             loss_deepvigor.backward()
 
-            channel_grad = torch.sum(torch.sum(self.activation.grad.data, 3), 2) 
+            channel_grad = torch.sum(torch.sum(self.activation.grad.data, 3), 2).detach()
             channel_grad[channel_grad != 0] = 1
             grad_bool_map = torch.eq(channel_grad[:, channel], torch.zeros_like(channel_grad[:, channel], device=self.device))
 
+            del self.activation.grad
+            del loss_deepvigor
+            del corrupted_out
+            torch.cuda.empty_cache()
+
             if torch.sum(channel_grad, 0)[channel] != 0:          #there is some images misclassified by faults
                 true_classified = torch.eq(corrupted_labels, detected_labels)
-                #analysis_counters_weights[6] += 1           #analyzed_positive
                 if torch.sum(true_classified) == batch_size:        #all images are misclassified by vulnerability_values > 1
                     if VVSS_dict_weights['pos_inf'].size(0) <= 1:
-                        #analysis_counters_weights[7] += 1           #single_big_positive
                         dlt_search_h = torch.ones_like(dlt_search_h, device=self.device) * inf_represent 
                     else:
-                        #analysis_counters_weights[8] += 1           #multi_big_positive
                         vector_len = VVSS_dict_weights['pos_inf'].size(0)
                         iteration_count = vector_len // 2
                         index_tensor = torch.ones(batch_size, dtype=torch.int, device=self.device) * iteration_count
@@ -189,16 +205,20 @@ class DeepVigor_analysis():
                             corrupted_out = self.model(images)
                             _, corrupted_labels = torch.max(corrupted_out, 1)
                             true_classified = torch.eq(corrupted_labels, detected_labels)
-                            #analysis_counters_weights[11] += 1
                             index_tensor = torch.logical_not(true_classified) * (index_tensor - 1) + true_classified * (index_tensor + 1)
                             index_tensor[index_tensor >= vector_len] = vector_len - 1
                             index_tensor[index_tensor < 0] = 0
                             handle.remove()
+                            
+                            del true_classified
+                            del corrupted_labels
+                            del corrupted_out
+
                         dlt_search_h = VVSS_dict_weights['pos_inf'][index_tensor]
-                        dlt_search_h[grad_bool_map == 1] = inf_represent  
+                        dlt_search_h[grad_bool_map == 1] = inf_represent
+                        torch.cuda.empty_cache()
 
                 else:
-                    #analysis_counters_weights[9] += 1           #mixed_positive
                     vector_len_inf = VVSS_dict_weights['pos_inf'].size(0)
                     vector_len_1 = VVSS_dict_weights['pos_1'].size(0)
                     iteration_count_inf = vector_len_inf // 2
@@ -212,7 +232,6 @@ class DeepVigor_analysis():
                         corrupted_out = self.model(images)
                         _, corrupted_labels = torch.max(corrupted_out, 1)
                         true_classified = torch.eq(corrupted_labels, detected_labels)
-                        #analysis_counters_weights[11] += 1
                         index_tensor_inf = true_classified_init * (torch.logical_not(true_classified) * (index_tensor_inf - 1) + true_classified * (index_tensor_inf + 1))
                         index_tensor_1 = torch.logical_not(true_classified_init) * (torch.logical_not(true_classified) * (index_tensor_1 - 1) + true_classified * (index_tensor_1 + 1))
                         index_tensor_inf[index_tensor_inf >= vector_len_inf] = vector_len_inf - 1
@@ -220,10 +239,17 @@ class DeepVigor_analysis():
                         index_tensor_1[index_tensor_1 >= vector_len_1] = vector_len_1 - 1
                         index_tensor_1[index_tensor_1 < 0] = 0
                         handle.remove()
+                        
+                        del corrupted_labels
+                        del true_classified
+                        del corrupted_out
+
+
                     dlt_search_h = torch.logical_not(true_classified_init) * VVSS_dict_weights['pos_1'][index_tensor_1] + true_classified_init * VVSS_dict_weights['pos_inf'][index_tensor_inf]
                     dlt_search_h[grad_bool_map == 1] = inf_represent  
+                    torch.cuda.empty_cache()
+
             else:
-                #analysis_counters_weights[10] += 1           #skipped_positive
                 dlt_search_h = torch.ones_like(dlt_search_h, device=self.device) * inf_represent  
 
 
@@ -243,14 +269,14 @@ class DeepVigor_analysis():
 
 
             #free memory
-            del self.activation.grad
-            del loss_deepvigor
             del channel_grad 
             del grad_bool_map
-            del corrupted_out
+            #del corrupted_out
             torch.cuda.empty_cache()
 
 
+        del images
+        del x_pad
         torch.cuda.empty_cache()
         return 1 - non_crit_channels
     

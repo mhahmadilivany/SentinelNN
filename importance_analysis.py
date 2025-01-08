@@ -289,6 +289,12 @@ class DeepVigor():
                     cvf_file.close()
 
                     self.logger.info(f"Derived and saved the vulnerability factors for layer {name}")
+                    del critical_cvf
+                    del sort_index
+                    del deepvigor
+                    del cvf_file
+                    del x_pad
+                    torch.cuda.empty_cache()
             
             else:
                 layer_name += name1 + "."

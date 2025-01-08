@@ -96,15 +96,16 @@ def load_dataset(dataset_name, batch_size, is_train):
             ]
         )
         if is_train:
-            trainset = ImageNetKaggle("../data/imagenet/", "train", transform)
+            trainset = ImageNetKaggle("/gpfs/mariana/home/moahma/Desktop/analytical/data/imagenet/", "train", transform)
             dataloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, num_workers=4, shuffle=False,
             )
         else:
-            testset = ImageNetKaggle("../data/imagenet/", "val", transform)
+            testset = ImageNetKaggle("/gpfs/mariana/home/moahma/Desktop/analytical/data/imagenet/", "val", transform)
             dataloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, num_workers=4, shuffle=False,
                 drop_last=False, pin_memory=True)
 
         classes_count = 1000
+        dummy_input = torch.randn(1, 3, 224, 224)
 
     return dataloader, classes_count, dummy_input
     
