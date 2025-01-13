@@ -201,7 +201,9 @@ class prune_utils():
                         model: nn.Module,
                         handler: handlers.AnalysisHandler,
                         logger: logging.Logger,
-                        command: str="l1-norm", 
+                        command: str="l1-norm",
+                        pruning_ratio: float=0,
+                        hardening_ratio: float=0, 
                         ) -> nn.Module:
         
         self._reset_params()
@@ -224,7 +226,8 @@ class prune_utils():
             for data in self.trainloader:
                 inputs = data[0].to(self.device)
                 break
-            sort_index_conv_dict = handler.execute(command, model, inputs, self.classes_count, self.device, logger)
+            torch.cuda.empty_cache()
+            sort_index_conv_dict = handler.execute(command, model, inputs, self.classes_count, self.device, logger, pruning_ratio, hardening_ratio)
             self._get_separated_layers(model)
 
         else:

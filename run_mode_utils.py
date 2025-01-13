@@ -56,7 +56,7 @@ def pruning_func(model: nn.Module,
     pu = utils.prune_utils(model, trainloader, classes_count, pruning_method, device)
     pu.set_pruning_ratios(pruning_ratio)
 
-    sorted_model = pu.channel_sorting(model, handler, logger, importance_command)
+    sorted_model = pu.channel_sorting(model, handler, logger, importance_command, pruning_ratio, 0)     #hardening ratio is assumed to be 0
     
     model_accuracy, model_params, model_macs = test_func(model, testloader, device, dummy_input, logger)
 
@@ -88,6 +88,7 @@ def hardening_func(model: nn.Module,
                    dummy_input: torch.tensor,
                    classes_count: int,
                    pruning_method: str,
+                   pruning_ratio: float,
                    hardening_ratio: float,
                    importance_command: str,
                    clipping_command: str,
@@ -111,7 +112,7 @@ def hardening_func(model: nn.Module,
 
     pu = utils.prune_utils(model, trainloader, classes_count, pruning_method, device)
 
-    sorted_model = pu.channel_sorting(model, analysisHandler, logger, importance_command)
+    sorted_model = pu.channel_sorting(model, analysisHandler, logger, importance_command, pruning_ratio, hardening_ratio)
     
     hr = utils.hardening_utils(hardening_ratio, clipping_command)
     hr.thresholds_extraction(sorted_model, clippingHandler, clipping_command, trainloader, device, logger)
@@ -120,7 +121,7 @@ def hardening_func(model: nn.Module,
     logger.info(f"model is hardened: {hardened_model}")
 
     log_dir = logger.handlers[0].baseFilename.split("log")[0]
-    torch.save(hardened_model.state_dict(), f'{log_dir}/../hardened_model-{importance_command}-{hardening_ratio}.pth')
+    torch.save(hardened_model.state_dict(), f'{log_dir}/../hardened_model-{importance_command}-{pruning_ratio}-{hardening_ratio}.pth')
     logger.info("model is hardened and saved")
 
     _, hardened_params, hardened_macs = test_func(hardened_model, testloader, device, dummy_input, logger)    

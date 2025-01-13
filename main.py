@@ -131,7 +131,8 @@ if __name__ == "__main__":
         assert hardening_ratio is not None
         assert clipping_command is not None
         runModeHandler.execute(run_mode, model, trainloader, testloader, dummy_input, classes_count, 
-                               pruning_method, hardening_ratio, importance_command, clipping_command, device, logger)
+                               pruning_method, pruning_ratio, hardening_ratio, importance_command, 
+                               clipping_command, device, logger)
     
     elif run_mode == "test_FI":
        assert BER is not None

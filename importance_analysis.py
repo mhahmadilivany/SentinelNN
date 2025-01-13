@@ -9,6 +9,9 @@ import fault_simulation
 import binary_converter
 import copy
 import run_mode_utils
+from pathlib import Path
+import os
+
 
 class L1_norm():
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -241,13 +244,17 @@ class DeepVigor():
         self.out_classes = args[2]  #int
         self.device = args[3]       #Union[torch.device, str]
         self.logger = args[4]       #logging.Logger
+        self.pruning_ratio = args[5]
+        self.hardening_ratio = args[6]
         
         self.layers_output_count_dict = {}
         self.input_activations_dict = {}
-        self.weights_dict = {}
         self.ind_dict = {}
+        self.vf_files_dir = self.logger.handlers[0].baseFilename.split("log")[0] + "/../deepvigor"
 
     def __call__(self, *args, **kwds):
+        if not os.path.exists(self.vf_files_dir):
+            os.makedirs(self.vf_files_dir)
         self.DeepVigor_executor(self.model)
         return self.ind_dict
 
@@ -255,7 +262,6 @@ class DeepVigor():
         def hook(model, input, output):
             self.layers_output_count_dict[name] = output[0].numel()
             self.input_activations_dict[name] = input[0]
-            self.weights_dict[name] = model.weight
         return hook
 
     def DeepVigor_executor(self, model, layer_name=''):
@@ -263,43 +269,106 @@ class DeepVigor():
             if list(layer.children()) == []:
                 if isinstance(layer, nn.Conv2d):
                     name = layer_name + name1
-                    handle = layer.register_forward_hook(self.__get_neurons_count(name))
-                    _ = self.model(self.inputs)
-                    handle.remove()
-
-                    deepvigor = DeepVigor_analysis(self.model, self.device)
-                    name = layer_name + name1
-                    x_pad = F.pad(self.input_activations_dict[name], (layer.padding[0], layer.padding[0], layer.padding[0], layer.padding[0]))
-                    layer_info_set = {"stride": layer.stride[0], "kernel_size": layer.kernel_size[0], "neurons_in_layer": self.layers_output_count_dict[name], 
-                                    "batch_size": self.inputs.size(0), "out_channel": layer.out_channels, 
-                                    "layer_inputs": x_pad, "layer_weights": layer.weight}
-                    
-                    # deriving channel vulnerability factors (CVF)
-                    critical_cvf = deepvigor.channels_vulnerability_factor(self.inputs, layer, layer_info_set, self.out_classes)
-                    
-                    sort_index = torch.argsort(critical_cvf, descending=True)
+                    cvf_file_dir = f"{self.vf_files_dir}/channels-VF-{name}-{self.pruning_ratio}-{self.hardening_ratio}.txt"
+                    if not Path(cvf_file_dir).is_file():
+                        critical_cvf = self.DeepVigor_analysis(layer, name)
+                        self.save_cvf(critical_cvf, cvf_file_dir)
+                        sort_index = torch.argsort(critical_cvf, descending=True)
+                    else:
+                        critical_cvf = self.load_cvf(layer.out_channels, cvf_file_dir)
+                        sort_index = torch.argsort(critical_cvf, descending=True)
                     self.ind_dict[name] = sort_index
 
-                    # saving the derived CVFs in a file
-                    log_dir = self.logger.handlers[0].baseFilename.split("log")[0]
-                    cvf_file_dir = f"{log_dir}/channels-VF-{name}.txt"
-                    cvf_file = open(cvf_file_dir, 'w')
-                    for i in range(layer.out_channels):
-                        cvf_file.write(str(critical_cvf[i].item()) + "\n")
-                    cvf_file.close()
-
-                    self.logger.info(f"Derived and saved the vulnerability factors for layer {name}")
-                    del critical_cvf
-                    del sort_index
-                    del deepvigor
-                    del cvf_file
-                    del x_pad
                     torch.cuda.empty_cache()
+            
+            elif isinstance(layer, nn.Module) and hasattr(layer, 'conv1') and hasattr(layer, 'conv2'):  #BasicBlocks in ResNet
+                name_ = layer_name + name1 + ".conv1"
+                cvf_file_dir = f"{self.vf_files_dir}/channels-VF-{name}-{self.pruning_ratio}-{self.hardening_ratio}.txt"
+                if not Path(cvf_file_dir).is_file():
+                    critical_cvf = self.DeepVigor_analysis(layer.conv1, name_)
+                    self.save_cvf(critical_cvf, cvf_file_dir)
+                    sort_index = torch.argsort(critical_cvf, descending=True)
+                else:
+                    critical_cvf = self.load_cvf(layer.conv1.out_channels, cvf_file_dir)
+                    sort_index = torch.argsort(critical_cvf, descending=True)
+                self.ind_dict[name_] = sort_index
+
+                name_ = layer_name + name1 + ".conv2"
+                cvf_file_dir = f"{self.vf_files_dir}/channels-VF-{name}-{self.pruning_ratio}-{self.hardening_ratio}.txt"
+                if not Path(cvf_file_dir).is_file():
+                    critical_cvf = self.DeepVigor_analysis(layer.conv2, name_)
+                    self.save_cvf(critical_cvf, cvf_file_dir)
+                    sort_index = torch.argsort(critical_cvf, descending=True)
+                else:
+                    critical_cvf = self.load_cvf(layer.conv2.out_channels, cvf_file_dir)
+                    sort_index = torch.argsort(critical_cvf, descending=True)
+                self.ind_dict[name_] = sort_index
+                
+                if layer.downsample:
+                    for name_tmp, sub_layer in layer.downsample.named_children():
+                        if isinstance(sub_layer, nn.Conv2d):
+                            name_ = layer_name + name1 + ".downsample." + name_tmp
+                            cvf_file_dir = f"{self.vf_files_dir}/channels-VF-{name}-{self.pruning_ratio}-{self.hardening_ratio}.txt"
+                            if not Path(cvf_file_dir).is_file():
+                                critical_cvf = self.DeepVigor_analysis(sub_layer, name_)
+                                self.save_cvf(critical_cvf, cvf_file_dir)
+                                sort_index = torch.argsort(critical_cvf, descending=True)
+                            else:
+                                critical_cvf = self.load_cvf(sub_layer.out_channels, cvf_file_dir)
+                                sort_index = torch.argsort(critical_cvf, descending=True)
+                            self.ind_dict[name_] = sort_index
             
             else:
                 layer_name += name1 + "."
                 self.DeepVigor_executor(layer, layer_name)
 
+
+    def DeepVigor_analysis(self,
+                           layer: nn.Module, 
+                           name: str) -> torch.tensor:
+        handle = layer.register_forward_hook(self.__get_neurons_count(name))
+        _ = self.model(self.inputs)
+        handle.remove()
+
+        deepvigor = DeepVigor_analysis(self.model, self.device)
+        x_pad = F.pad(self.input_activations_dict[name], (layer.padding[0], layer.padding[0], layer.padding[0], layer.padding[0]))
+        layer_info_set = {"stride": layer.stride[0], "kernel_size": layer.kernel_size[0], "neurons_in_layer": self.layers_output_count_dict[name], 
+                        "batch_size": self.inputs.size(0), "out_channel": layer.out_channels, 
+                        "layer_inputs": x_pad, "layer_weights": layer.weight}
+        
+        # deriving channel vulnerability factors (CVF)
+        critical_cvf = deepvigor.channels_vulnerability_factor(self.inputs, layer, layer_info_set, self.out_classes)    
+
+        self.logger.info(f"Derived and saved the vulnerability factors for layer {name}")
+        
+        del deepvigor
+        del x_pad
+
+        return critical_cvf
+
+    
+    def save_cvf(self,
+                 critical_cvf: torch.tensor,
+                 cvf_file_dir: str) -> None:
+        cvf_file = open(cvf_file_dir, 'w')
+        for i in range(critical_cvf.size(0)):
+            cvf_file.write(str(critical_cvf[i].item()) + "\n")
+        cvf_file.close()
+
+    
+    def load_cvf(self,
+                 out_channels: int,
+                 cvf_file_dir: str) -> torch.tensor:
+        critical_cvf = torch.zeros(out_channels, device=self.device)
+        cvf_file = open(cvf_file_dir, 'r')
+        i = 0
+        for line in cvf_file:
+            critical_cvf[i] = float(line)
+            i += 1
+        cvf_file.close()
+        self.logger.info(f"Loaded the vulnerability factors from {cvf_file_dir}")
+
+        return critical_cvf
 
 class channel_FI():
     def __init__(self, *args, **kwds):
