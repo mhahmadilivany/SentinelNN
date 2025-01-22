@@ -15,7 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, required=True, help="name of the CNN")
     parser.add_argument("--dataset", type=str, choices=["cifar10", "cifar100", "imagenet"], required=True, help="name of the dataset")
     parser.add_argument("--batch-size", type=int, default=128, help="an integer value for bach-size")
-    parser.add_argument("--is-ranking", action='store_true', help="set the flag, if you want to rank the channels in conv layers")
+    parser.add_argument("--is-ranking", action='store_true', help="set the flag, if you want to only rank the channels in conv layers")
     parser.add_argument("--is-pruning", action='store_true', help="set the flag, if you want to prune the CNN")
     parser.add_argument("--is-pruned", action='store_true', help="set the flag, if you want to load a pruned CNN")
     parser.add_argument("--pruning-method", type=str, default="hm", help="pruning method, homogeneous or heterogeneous")
