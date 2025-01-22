@@ -2,16 +2,19 @@
 
 SentinelNN is an open-source framework to analyze and enhance the fault tolerance of CNN models. The key features of SentinelNN are:
 
-* Resilience analysis: SentinelNN provides a set methods for the importance analysis of channels in convolutional layers, including: L1-norm, salience, gain vulnerability, and DeepVigor+
+* Resilience analysis: SentinelNN provides a set of methods for the importance analysis of channels in convolutional layers, including: *"l1-norm", "vul-gain", "salience", "deepvigor"*
 * Structured channel pruning: SentinelNN can prune the less important channels of CNNs, based on a selected resilience analysis method, to reduce the size of CNNs
 * Selective channel duplication and correction: SentinelNN duplicates the more important (or vulnerable) channels and applies a correction mechanism to mitigate the effect of faults
-* Range restriction: SentinalNN applies a range restriction method (i.e., Ranger) to ReLU activation function to reduce the error propagation to the CNN outputs
+* Range restriction: SentinalNN applies a range restriction method (i.e., Ranger) to the ReLU activation function to reduce the error propagation to the CNN outputs
 
-The framework takes a pretrained CNN model (i.e., .pth file) and outputs pruned or hardened model with a same format. For experiments, sentinelNN logs the results in a directory with the name of the model and dataset. The user can also conduct fault injection experiments to observe the effectiveness of model hardening.
+The framework takes a pretrained CNN model (i.e., .pth file) and outputs pruned or hardened model with the same format. For experiments, sentinelNN logs the results in a directory with the model's name and dataset. The user can also conduct fault injection experiments to observe the effectiveness of model hardening.
+
+![SentinelNN](https://github.com/user-attachments/assets/0f04e1fc-6c6c-405c-8a47-239f6c9d5439)
+
 
 **Requirements:**
 
-This framwork is developed and tested with python 3.10, pytorch 1.10.2+cu102, torchvision 0.11.2+cu102
+This framework is developed and tested with python 3.10, pytorch 1.10.2+cu102, torchvision 0.11.2+cu102
 
 **How to use:**
 
@@ -31,7 +34,7 @@ This framework supports loading pretrained models for Cifar-10 and Cifar-100 dir
   --pruning-ratio=0.x --importance=method_name
   ```
 
-> the `pruning_ratio` is a value between 0 and 1. the `importance` method name can be: *"l1-norm", "vul-gain", "salience", "deepvigor" or "channel-FI"*.
+> the `pruning_ratio` is a value between 0 and 1. The `importance` method name can be: *"l1-norm", "vul-gain", "salience", "deepvigor" or "channel-FI"*.
 
 > In the case of `importance=deepvigor` the derived vulnerability factors by [DeepVigor ](https://github.com/mhahmadilivany/DeepVigor)are saved, for each layer separately, in the corresponding workspace and can be reused.
 
@@ -64,11 +67,11 @@ This framework supports loading pretrained models for Cifar-10 and Cifar-100 dir
 
 > This command performs bitflips in convolutional and linear layers with the *Bit Error Rate (BER)* of `0.000005` and repeats the FI campaign `1000 `times and logs the average results.
 
-> While loading a pruned or hardened model, the `pruning_ratio `and `hardening_ratio` should be equal to their initial applied ratios and the corresponding files should be assigned. The framework, first loads the initial model, then modifies its structure with respect to the pruning and hardening ratios, respectively. And finally, loads the parameters from the saved model.
+> While loading a pruned or hardened model, the `pruning_ratio `and `hardening_ratio` should be equal to their initial applied ratios and the corresponding files should be assigned. The framework first loads the initial model, and then modifies its structure with respect to the pruning and hardening ratios, respectively. And finally, it loads the parameters from the saved model.
 
-> SentinelNN supports Ranger at the moment, in the hardening process in which ReLU is protected. In another framework, called [RReLU](https://github.com/hamidmousavi0/reliable-relu-toolbox/tree/master), we have implemented multiple state-of-the-art activation restriction methods.
+> SentinelNN supports Ranger at the moment, in the hardening process in which ReLU is protected. We have implemented multiple state-of-the-art activation restriction methods in another framework, called [RReLU](https://github.com/hamidmousavi0/reliable-relu-toolbox/tree/master).
 
-Check out published paper [here ](https://ieeexplore.ieee.org/document/10616072)or [here](https://arxiv.org/abs/2405.10658). If you use SentinelNN, please cite:
+Check out the published paper [here ](https://ieeexplore.ieee.org/document/10616072)or [here](https://arxiv.org/abs/2405.10658). If you use SentinelNN, please cite:
 
 ```
 @inproceedings{ahmadilivani2024cost-effective,
