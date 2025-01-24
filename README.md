@@ -34,7 +34,7 @@ This framework supports loading pretrained models for Cifar-10 and Cifar-100 dir
   --pruning-ratio=0.x --importance=method_name
   ```
 
-> the `pruning_ratio` is a value between 0 and 1. The `importance` method name can be: *"l1-norm", "vul-gain", "salience", "deepvigor" or "channel-FI"*.
+> The `pruning_ratio` is a value between 0 and 1. The `importance` method name can be: *"l1-norm", "vul-gain", "salience", "deepvigor" or "channel-FI"*.
 
 > In the case of `importance=deepvigor` the derived vulnerability factors by [DeepVigor ](https://github.com/mhahmadilivany/DeepVigor)are saved, for each layer separately, in the corresponding workspace and can be reused.
 
@@ -48,7 +48,7 @@ This framework supports loading pretrained models for Cifar-10 and Cifar-100 dir
 
   ```
   python main.py --model=model_name --dataset=dataset_name --batch-size=batch-size \
-    --is-hardening --hardening-ratio=0.x --importance=method_name--clipping=ranger
+    --is-hardening --hardening-ratio=0.x --importance=method_name --clipping=ranger
   ```
 * To harden a pruned model:
 
@@ -80,11 +80,11 @@ Check out the published paper [here ](https://ieeexplore.ieee.org/document/10616
   title={Cost-Effective Fault Tolerance for CNNs Using Parameter Vulnerability Based Hardening and Pruning}, 
   year={2024},
   pages={1-7},
-  keywords={Accuracy;Error analysis;Computational modeling;Fault tolerant systems;Redundancy;Neural networks;Hardware},
+  keywords={Accuracy; Error analysis; Computational modeling; Fault-tolerant systems; Redundancy; Neural networks},
   doi={10.1109/IOLTS60994.2024.10616072}}
 ```
 
-More papers and frameworks:
+Related papers and frameworks:
 
 * [DeepVigor+](https://github.com/mhahmadilivany/DeepVigor) source code, and [paper1](https://ieeexplore.ieee.org/document/10174133) and [paper2](https://arxiv.org/abs/2410.15742)
 * [RReLU](https://github.com/hamidmousavi0/reliable-relu-toolbox/tree/master) toolbox source code and its [paper](https://arxiv.org/abs/2406.06313)
